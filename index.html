@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<title>顺丰驿站数据记录与可视化</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"顺丰驿站数据记录","short_name":"驿站数据","start_url":"https://yizhan-ghuaovn2.edgeone.cool/","scope":"https://yizhan-ghuaovn2.edgeone.cool/","display":"standalone","background_color":"#f1f5f9","theme_color":"#2563eb"}'>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+:root{--primary:#2563eb;--primary-dark:#1d4ed8;--bg:#f1f5f9;--card:#fff;--text:#0f172a;--muted:#64748b;--border:#e2e8f0;--danger:#dc2626;--radius:14px;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.55;padding-bottom:calc(72px + env(safe-area-inset-bottom));}
+.app-header{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;padding:18px 16px 20px;padding-top:calc(18px + env(safe-area-inset-top));}
+.app-header h1{margin:0;font-size:19px;font-weight:600;}
+.app-header .sub{margin:4px 0 0;font-size:12px;opacity:.82;}
+main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
+.panel{display:none;}.panel.active{display:block;}
+.card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06);}
+.card-title{font-size:15px;font-weight:600;margin-bottom:14px;padding-left:10px;position:relative;}
+.card-title::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:14px;background:var(--primary);border-radius:2px;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px;font-weight:500;}
+.field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:16px;font-family:inherit;background:#f8fafc;outline:none;}
+.field select{appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.6' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;}
+.field input:focus,.field select:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 8px;}
+@media(max-width:380px){.grid3{grid-template-columns:1fr 1fr;}}
+.btn-primary{width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:11px;font-size:16px;font-weight:600;cursor:pointer;margin-top:6px;font-family:inherit;}
+.btn-primary:active{background:var(--primary-dark);}
+.btn-ocr{width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:600;margin-bottom:12px;cursor:pointer;}
+.btn-batch{width:100%;padding:12px;background:#059669;color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:600;margin-bottom:12px;cursor:pointer;}
+.today-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.kv{text-align:center;background:#f1f5f9;border-radius:10px;padding:10px 4px;}
+.kv span{display:block;font-size:11px;color:var(--muted);margin-bottom:3px;}
+.kv b{font-size:18px;color:var(--primary);font-weight:600;}
+.rec{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);}
+.rec:last-child{border-bottom:none;}
+.rec-main{flex:1;min-width:0;}
+.rec-title{font-size:14px;font-weight:600;margin-bottom:2px;}
+.rec-sub{font-size:12.5px;color:var(--muted);}
+.rec-note{font-size:12px;color:#94a3b8;margin-top:3px;}
+.btn-del{flex-shrink:0;padding:5px 10px;font-size:12px;color:var(--danger);background:#fef2f2;border:1px solid #fecaca;border-radius:8px;cursor:pointer;}
+.empty{text-align:center;color:#94a3b8;font-size:13px;padding:16px 0;margin:0;}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+.stat{background:#fff;border-radius:12px;padding:14px 8px;text-align:center;box-shadow:0 1px 3px rgba(15,23,42,.06);}
+.stat b{display:block;font-size:22px;color:var(--primary);font-weight:700;}
+.stat span{font-size:12px;color:var(--muted);}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.btn-sm{flex:1;min-width:110px;padding:10px;font-size:13.5px;border-radius:10px;border:1px solid var(--border);background:#f8fafc;cursor:pointer;font-family:inherit;font-weight:500;}
+.btn-sm.danger{color:var(--danger);border-color:#fecaca;background:#fef2f2;}
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#fff;border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom);z-index:100;}
+.tab{flex:1;padding:9px 4px;text-align:center;font-size:11.5px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.tab.active{color:var(--primary);font-weight:600;}
+.tab .ico{font-size:19px;line-height:1;}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(15,23,42,.92);color:#fff;padding:9px 20px;border-radius:20px;font-size:13.5px;opacity:0;transition:all .25s;z-index:999;}
+.toast.show{opacity:1;}
+.hint{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.6;}
+.summary-box{background:#eff6ff;border-radius:10px;padding:12px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.summary-item{text-align:center;}
+.summary-item span{font-size:12px;color:var(--muted);display:block;}
+.summary-item b{font-size:16px;color:#1e40af;}
+.chart-container{width:100%;height:250px;margin-top:10px;}
+
+/* 批量导入模态框样式 */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.show{display:flex;}
+.modal-content{background:#fff;border-radius:14px;width:100%;max-width:600px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;}
+.modal-header{padding:16px;border-bottom:1px solid var(--border);font-weight:600;font-size:16px;display:flex;justify-content:space-between;align-items:center;}
+.modal-body{padding:16px;overflow-y:auto;flex:1;}
+.modal-footer{padding:16px;border-top:1px solid var(--border);display:flex;gap:10px;}
+.modal-footer button{flex:1;padding:12px;border-radius:10px;border:none;font-size:15px;font-weight:600;cursor:pointer;}
+.btn-cancel{background:#f1f5f9;color:var(--text);}
+.btn-confirm{background:var(--primary);color:#fff;}
+.preview-table{width:100%;border-collapse:collapse;font-size:13px;}
+.preview-table th,.preview-table td{border:1px solid var(--border);padding:6px;text-align:center;}
+.preview-table th{background:#f8fafc;font-weight:500;color:var(--muted);}
+.preview-table input[type="text"], .preview-table input[type="number"]{width:100%;border:1px solid transparent;background:transparent;text-align:center;font-size:13px;padding:4px;border-radius:4px;}
+.preview-table input:focus{border-color:var(--primary);background:#fff;outline:none;}
+.preview-table .del-btn{color:var(--danger);cursor:pointer;background:none;border:none;font-size:14px;}
+</style>
+</head>
+<body>
+<header class="app-header">
+  <h1>顺丰驿站数据记录</h1>
+  <p class="sub">广州工商学院 · 流程优化研究数据采集</p >
+</header>
+
+<main>
+  <!-- ============ 每日汇总 ============ -->
+  <section class="panel active" id="panel-daily">
+    <div class="card">
+      <div class="card-title">今日概览</div>
+      <div class="today-grid" id="today-box"></div>
+    </div>
+
+    <form class="card" id="form-daily">
+      <div class="card-title">记录每日数据</div>
+      
+      <!-- 单日识别和批量识别按钮 -->
+      <input type="file" id="ocr-input" accept="image/*" capture="environment" style="display:none">
+      <button type="button" class="btn-ocr" id="btn-ocr-trigger" onclick="document.getElementById('ocr-input').click()">📷 单日看板识别（图1）</button>
+      
+      <input type="file" id="batch-ocr-input" accept="image/*" multiple style="display:none">
+      <button type="button" class="btn-batch" id="btn-batch-ocr-trigger" onclick="document.getElementById('batch-ocr-input').click()">📦 批量导入多日明细（图2）</button>
+
+      <div class="field">
+        <label for="d-date">日期</label>
+        <input type="date" id="d-date" required>
+      </div>
+      
+      <div class="grid3">
+        <div class="field"><label for="d-inbound">今日入库（件）</label><input type="number" id="d-inbound" inputmode="numeric" min="0" placeholder="0" required></div>
+        <div class="field"><label for="d-outbound">今日签收（件）</label><input type="number" id="d-outbound" inputmode="numeric" min="0" placeholder="0" required></div>
+        <div class="field"><label for="d-send">今日寄件（件）</label><input type="number" id="d-send" inputmode="numeric" min="0" placeholder="0"></div>
+      </div>
+
+      <div class="grid2">
+        <div class="field"><label for="d-sf-inbound">顺丰件入库（件）</label><input type="number" id="d-sf-inbound" inputmode="numeric" min="0" placeholder="0"></div>
+        <div class="field"><label for="d-other-inbound">其他品牌入库（件）</label><input type="number" id="d-other-inbound" inputmode="numeric" min="0" placeholder="0"></div>
+      </div>
+
+      <div class="grid2">
+        <div class="field"><label for="d-abnormal-out">异常出库量（件）</label><input type="number" id="d-abnormal-out" inputmode="numeric" min="0" placeholder="滞留/改约等"></div>
+        <div class="field"><label for="d-staff">在岗人数（人）</label><input type="number" id="d-staff" inputmode="numeric" min="0" placeholder="0"></div>
+      </div>
+<div class="field">
+        <label for="d-flow-mode">业务模式（9月7日前后）</label>
+        <select id="d-flow-mode">
+          <option value="简化前">简化前（9月7日前）</option>
+          <option value="简化后" selected>简化后（9月7日后）</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="d-note">备注</label>
+        <input type="text" id="d-note" placeholder="如：系统故障、下雨等特殊原因">
+      </div>
+      <button type="submit" class="btn-primary">保存记录</button>
+    </form>
+
+    <div class="card">
+      <div class="card-title">近7日与当月汇总</div>
+      <div id="summary-display"></div>
+    </div>
+  </section>
+
+  <!-- ============ 时段流量 ============ -->
+  <section class="panel" id="panel-hourly">
+    <form class="card" id="form-hourly">
+      <div class="card-title">记录时段取件人数（9:00-20:00）</div>
+      <div class="field"><label for="h-date">日期</label><input type="date" id="h-date" required></div>
+      <div class="field">
+        <label for="h-hour">时段</label>
+        <select id="h-hour" required>
+          <option value="09:00-10:00">09:00-10:00</option><option value="10:00-11:00">10:00-11:00</option>
+          <option value="11:00-12:00">11:00-12:00</option><option value="12:00-13:00">12:00-13:00</option>
+          <option value="13:00-14:00">13:00-14:00</option><option value="14:00-15:00">14:00-15:00</option>
+          <option value="15:00-16:00">15:00-16:00</option><option value="16:00-17:00">16:00-17:00</option>
+          <option value="17:00-18:00">17:00-18:00</option><option value="18:00-19:00">18:00-19:00</option>
+          <option value="19:00-20:00">19:00-20:00</option>
+        </select>
+      </div>
+      <div class="field"><label for="h-count">该时段取件人数（人）</label><input type="number" id="h-count" inputmode="numeric" min="0" placeholder="0" required></div>
+      <div class="field"><label for="h-note">备注</label><input type="text" id="h-note" placeholder="如：下课高峰、下雨等"></div>
+      <button type="submit" class="btn-primary">保存记录</button>
+    </form>
+  </section>
+
+  <!-- ============ 数据管理与可视化 ============ -->
+  <section class="panel" id="panel-data">
+    <div class="stats">
+      <div class="stat"><b id="stat-daily">0</b><span>每日记录</span></div>
+      <div class="stat"><b id="stat-hourly">0</b><span>时段记录</span></div>
+      <div class="stat"><b id="stat-wait">0</b><span>等待样本</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">趋势与结构分析</div>
+      <div id="chart-trend" class="chart-container"></div>
+      <div id="chart-hour" class="chart-container"></div>
+      <p class="hint">折线图展示每日出入库量及异常出库趋势，柱状图展示时段取件人数分布。</p >
+    </div>
+
+    <div class="card">
+      <div class="card-title">每日数据（点击删除）</div>
+      <div id="list-daily"></div>
+      <div class="btn-row"><button class="btn-sm" onclick="exportDaily()">导出每日CSV</button></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">备份与恢复</div>
+      <div class="btn-row">
+        <button class="btn-sm" onclick="backupAll()">导出全部备份（JSON）</button>
+        <button class="btn-sm" onclick="document.getElementById('file-import').click()">导入备份</button>
+        <button class="btn-sm danger" onclick="clearAll()">清空全部数据</button>
+      </div>
+      <input type="file" id="file-import" accept=".json" style="display:none">
+      <p class="hint">建议每周导出一次JSON备份文件，防止数据丢失。</p >
+    </div>
+  </section>
+</main>
+<nav class="bottom-nav">
+  <button class="tab active" data-tab="daily"><span class="ico">📋</span>每日汇总</button>
+  <button class="tab" data-tab="hourly"><span class="ico">⏰</span>时段流量</button>
+  <button class="tab" data-tab="data"><span class="ico">📊</span>数据与图表</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<!-- 批量导入预览模态框 -->
+<div class="modal-overlay" id="preview-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span>批量识别结果预览</span>
+      <span style="font-size:12px;color:var(--muted);cursor:pointer;" onclick="closePreview()">✕ 关闭</span>
+    </div>
+    <div class="modal-body">
+      <p class="hint" style="margin-top:0;">请核对识别结果，如有误可直接在表格中修改。确认无误后点击“确认导入”。</p >
+      <div style="overflow-x:auto;">
+        <table class="preview-table" id="preview-table">
+          <thead>
+            <tr>
+              <th style="width:40px;">选择</th>
+              <th>日期</th>
+              <th>入库量</th>
+              <th>签收量</th>
+              <th>异常出库<br>(退回量)</th>
+              <th>在岗人数</th>
+              <th style="width:40px;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="preview-tbody">
+            <!-- 动态插入 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closePreview()">取消</button>
+      <button class="btn-confirm" onclick="confirmBatchImport()">确认导入</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const KEYS = { daily:'yz_daily_v4', hourly:'yz_hourly_v4' };
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function todayStr(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function load(key){ try { return JSON.parse(localStorage.getItem(key))||[]; } catch(e){ return []; } }
+function save(key, arr){ localStorage.setItem(key, JSON.stringify(arr)); }
+function num(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg){ const el=$('#toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),1800); }
+function toCSV(headers, rows){
+  const esc = v => { const s=String(v??''); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  return '\uFEFF' + [headers.map(esc).join(','), ...rows.map(r=>r.map(esc).join(','))].join('\r\n');
+}
+function download(name, content, type){
+  const blob = new Blob([content], {type: type||'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+// ================= Tab 切换 =================
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+    if(t.dataset.tab === 'data') renderData();
+    if(t.dataset.tab === 'daily') { renderToday(); renderDailySummary(); }
+    window.scrollTo(0,0);
+  });
+});
+
+// ================= 单日看板 OCR 逻辑（图1） =================
+document.getElementById('ocr-input').addEventListener('change', async function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { toast('图片过大，请压缩后再上传'); return; }
+
+  const reader = new FileReader();
+  reader.onload = async function(evt) {
+    const base64Image = evt.target.result.split(',')[1];
+    toast('单日数据识别中...');
+  // 在 ocr-input 的 change 事件处理中
+try {
+  const res = await fetch('/api/ocr', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: base64Image })
+  });
+  
+  // 先检查 HTTP 状态码
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error(`后端返回状态码 ${res.status}，响应内容:`, errorText);
+    toast(`服务器错误 (${res.status})，请检查函数部署`);
+    return;
+  }
+  
+  const data = await res.json();
+  // ... 后续处理
+} catch (err) {
+  console.error('请求发送失败:', err);
+  toast('网络连接失败，请检查域名解析');
+}
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+// 单日正则提取逻辑
+function autoFillForm(text) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  document.getElementById('d-date').value = todayStr;
+  
+  const inboundMatch = text.match(/今日入库[^\d]*(\d+)/);
+  if (inboundMatch) document.getElementById('d-inbound').value = inboundMatch[1];
+  
+  const outboundMatch = text.match(/(今日出库|签收)[^\d]*(\d+)/);
+  if (outboundMatch) document.getElementById('d-outbound').value = outboundMatch[2];
+  
+  const sendMatch = text.match(/(今日寄件|寄件)[^\d]*(\d+)/);
+  if (sendMatch) document.getElementById('d-send').value = sendMatch[1];
+
+  // 尝试匹配异常出库（退回量）
+  const abnormalMatch = text.match(/(异常出库|退回量)[^\d]*(\d+)/);
+  if (abnormalMatch) document.getElementById('d-abnormal-out').value = abnormalMatch[2];
+
+  toast('识别成功，请核对数据');
+}
+// ================= 批量导入 OCR 逻辑（图2） =================
+let ocrResultsQueue = []; // 存放识别出的结构化行数据
+
+document.getElementById('batch-ocr-input').addEventListener('change', async function(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+
+  toast(`正在处理 ${files.length} 张图片...`);
+  ocrResultsQueue = []; // 清空队列
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (file.size > 3 * 1024 * 1024) { continue; } // 过大跳过
+
+    const base64Image = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (evt) => resolve(evt.target.result.split(',')[1]);
+      reader.readAsDataURL(file);
+    });
+
+    try {
+      const res = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Image })
+      });
+      const data = await res.json();
+      if (data.words_result) {
+        // 解析单张图片的多行表格数据，推入队列
+        const rows = parseTableData(data.words_result);
+        ocrResultsQueue = ocrResultsQueue.concat(rows);
+      }
+    } catch (err) {
+      console.error('单张识别失败', err);
+    }
+  }
+
+  if (ocrResultsQueue.length === 0) {
+    toast('未能识别出有效数据，请检查图片清晰度或重试');
+    return;
+  }
+
+  // 排序：按日期倒序
+  ocrResultsQueue.sort((a, b) => a.date < b.date ? 1 : -1);
+
+  // 渲染预览表格
+  renderPreviewTable();
+  document.getElementById('preview-modal').classList.add('show');
+  e.target.value = '';
+});
+
+// 核心：将百度的坐标结果解析为多行表格数据
+function parseTableData(wordsResult) {
+  const rows = [];
+  
+  // 1. 过滤和排序
+  const items = wordsResult.map(item => ({
+    text: item.words,
+    top: item.location.top,
+    left: item.location.left
+  })).sort((a, b) => a.top - b.top || a.left - b.left);
+
+  // 2. 提取所有日期（如 08-31 或 2026-08-31）
+  const dateRegex = /^\d{2,4}-\d{1,2}-\d{1,2}$/;
+  const dates = items.filter(i => dateRegex.test(i.text));
+
+  // 3. 针对每个日期，寻找同一行（top 差值在 15 以内）的其他数字
+  dates.forEach(dateItem => {
+    const rowData = {
+      date: dateItem.text,
+      inbound: '',
+      outbound: '',
+      abnormal: '',
+      staff: '' // 在岗人数手动补录
+    };
+const sameRowItems = items.filter(i => 
+      Math.abs(i.top - dateItem.top) < 20 && i.text !== dateItem.text
+    );
+
+    // 该行中的数字
+    const numbers = sameRowItems
+      .filter(i => /^\d+$/.test(i.text))
+      .sort((a, b) => a.left - b.left); // 按从左到右排序
+
+    if (numbers.length >= 1) rowData.inbound = numbers[0].text;
+    if (numbers.length >= 2) rowData.outbound = numbers[1].text;
+    if (numbers.length >= 3) rowData.abnormal = numbers[2].text;
+
+    rows.push(rowData);
+  });
+
+  return rows;
+}
+
+// 智能补全年份的辅助函数
+function smartYearCompletion(dateStr) {
+  if (dateStr.split('-').length === 3) return dateStr; // 已经是完整的 2026-08-31
+  const parts = dateStr.split('-');
+  const now = new Date();
+  let year = now.getFullYear();
+  const month = parseInt(parts[0], 10);
+  // 如果识别出来的月份大于当前月份，说明是去年的数据
+  if (month > now.getMonth() + 1) {
+    year -= 1;
+  }
+  return `${year}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+}
+
+// 渲染预览编辑表格
+function renderPreviewTable() {
+  const tbody = document.getElementById('preview-tbody');
+  if (!ocrResultsQueue.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px;">暂无数据</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = ocrResultsQueue.map((row, index) => `
+    <tr data-index="${index}">
+      <td><input type="checkbox" class="preview-check" checked></td>
+      <td><input type="date" class="preview-date" value="${smartYearCompletion(row.date)}"></td>
+      <td><input type="number" class="preview-inbound" value="${row.inbound}" placeholder="0"></td>
+      <td><input type="number" class="preview-outbound" value="${row.outbound}" placeholder="0"></td>
+      <td><input type="number" class="preview-abnormal" value="${row.abnormal}" placeholder="0"></td>
+      <td><input type="number" class="preview-staff" value="${row.staff}" placeholder="手动填"></td>
+      <td><button class="del-btn" onclick="deletePreviewRow(${index})">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+// 删除预览中的某一行
+window.deletePreviewRow = function(index) {
+  ocrResultsQueue.splice(index, 1);
+  renderPreviewTable(); // 重新渲染
+};
+
+// 关闭预览
+window.closePreview = function() {
+  document.getElementById('preview-modal').classList.remove('show');
+};
+
+// 确认批量导入
+window.confirmBatchImport = function() {
+  const rows = document.querySelectorAll('#preview-tbody tr');
+  if (!rows.length) return;
+
+  const existingList = load(KEYS.daily);
+  let importCount = 0;
+  let coverCount = 0;
+
+  rows.forEach(row => {
+    const checkbox = row.querySelector('.preview-check');
+    if (!checkbox || !checkbox.checked) return; // 未勾选跳过
+
+    const date = row.querySelector('.preview-date').value;
+    const inbound = num(row.querySelector('.preview-inbound').value);
+    const outbound = num(row.querySelector('.preview-outbound').value);
+    const abnormal = num(row.querySelector('.preview-abnormal').value);
+    const staff = num(row.querySelector('.preview-staff').value);
+
+    if (!date) return;
+// 查找是否存在该日期的记录
+    const idx = existingList.findIndex(r => r.date === date);
+    if (idx >= 0) {
+      // 覆盖核心数据，保留原有补充数据（如备注、顺丰件入库等）
+      existingList[idx].inbound = inbound;
+      existingList[idx].outbound = outbound;
+      existingList[idx].abnormalOut = abnormal;
+      if (staff) existingList[idx].staff = staff; // 如果填了在岗人数则更新
+      coverCount++;
+    } else {
+      // 新增记录，补充信息留空等待后续录入
+      existingList.push({
+        id: uid(),
+        date: date,
+        inbound: inbound,
+        outbound: outbound,
+        send: 0,
+        sfInbound: 0,
+        otherInbound: 0,
+        abnormalOut: abnormal,
+        staff: staff,
+        flowMode: date < '2026-09-07' ? '简化前' : '简化后', // 粗略判断，可后续手动改
+        note: '批量OCR导入',
+        ts: Date.now()
+      });
+      importCount++;
+    }
+  });
+
+  // 排序并保存
+  existingList.sort((a,b) => a.date < b.date ? 1 : -1);
+  save(KEYS.daily, existingList);
+
+  closePreview();
+  renderToday();
+  renderDailySummary();
+  toast(`导入完成：新增 ${importCount} 天，覆盖 ${coverCount} 天`);
+};
+
+// ================= 基础数据存取逻辑 =================
+
+document.getElementById('form-daily').addEventListener('submit', e => {
+  e.preventDefault();
+  const date = $('#d-date').value || todayStr();
+  const rec = {
+    id: uid(), date,
+    inbound: num($('#d-inbound').value),
+    outbound: num($('#d-outbound').value),
+    send: num($('#d-send').value),
+    sfInbound: num($('#d-sf-inbound').value),
+    otherInbound: num($('#d-other-inbound').value),
+    abnormalOut: num($('#d-abnormal-out').value),
+    staff: num($('#d-staff').value),
+    flowMode: $('#d-flow-mode').value,
+    note: $('#d-note').value.trim(),
+    ts: Date.now()
+  };
+  const list = load(KEYS.daily);
+  const idx = list.findIndex(r => r.date === date);
+  if(idx >= 0){
+    if(!confirm(date + ' 已有记录，是否覆盖？')) return;
+    rec.id = list[idx].id; list[idx] = rec;
+  } else { list.push(rec); }
+  list.sort((a,b) => a.date < b.date ? 1 : -1);
+  save(KEYS.daily, list);
+  
+  e.target.reset();
+  $('#d-date').value = todayStr();
+  toast('已保存 ✓'); renderToday(); renderDailySummary();
+});
+
+function renderToday(){
+  const rec = load(KEYS.daily).find(r => r.date === todayStr());
+  const el = $('#today-box');
+  if(!rec){ el.innerHTML = '<p class="empty" style="grid-column:1/-1">今日暂无记录</p >'; return; }
+  el.innerHTML = `
+    <div class="kv"><span>入库</span><b>${rec.inbound}</b></div>
+    <div class="kv"><span>签收</span><b>${rec.outbound}</b></div>
+    <div class="kv"><span>异常出库</span><b style="color:var(--danger)">${rec.abnormalOut||0}</b></div>
+    <div class="kv"><span>寄件</span><b>${rec.send}</b></div>
+  `;
+}
+function renderDailySummary(){
+  const list = load(KEYS.daily);
+  if(!list.length){ $('#summary-display').innerHTML = '<p class="empty">暂无数据</p >'; return; }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 6);
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  
+  let sum7 = { inbound:0, outbound:0, abnormalOut:0, send:0, sfInbound:0 };
+  let sumMonth = { inbound:0, outbound:0, abnormalOut:0, send:0, sfInbound:0 };
+  
+  list.forEach(r => {
+    const d = new Date(r.date); d.setHours(0,0,0,0);
+    if(d >= sevenDaysAgo){ sum7.inbound+=r.inbound||0; sum7.outbound+=r.outbound||0; sum7.abnormalOut+=r.abnormalOut||0; sum7.send+=r.send||0; sum7.sfInbound+=r.sfInbound||0; }
+    if(d >= firstOfMonth){ sumMonth.inbound+=r.inbound||0; sumMonth.outbound+=r.outbound||0; sumMonth.abnormalOut+=r.abnormalOut||0; sumMonth.send+=r.send||0; sumMonth.sfInbound+=r.sfInbound||0; }
+  });
+  
+  const rate7 = sum7.inbound ? ((sum7.outbound / sum7.inbound) * 100).toFixed(2) + '%' : '0%';
+  const rateMonth = sumMonth.inbound ? ((sumMonth.outbound / sumMonth.inbound) * 100).toFixed(2) + '%' : '0%';
+  
+  $('#summary-display').innerHTML = `
+    <div class="summary-box">
+      <div class="summary-item"><span>近7日入库</span><b>${sum7.inbound}</b></div>
+      <div class="summary-item"><span>近7日签收</span><b>${sum7.outbound}</b></div>
+      <div class="summary-item"><span>近7日出库率</span><b>${rate7}</b></div>
+      <div class="summary-item"><span>近7日异常出库</span><b style="color:var(--danger)">${sum7.abnormalOut}</b></div>
+    </div>
+    <div class="summary-box" style="background:#f0fdf4;">
+      <div class="summary-item"><span>当月入库</span><b>${sumMonth.inbound}</b></div>
+      <div class="summary-item"><span>当月签收</span><b>${sumMonth.outbound}</b></div>
+      <div class="summary-item"><span>当月出库率</span><b>${rateMonth}</b></div>
+      <div class="summary-item"><span>当月异常出库</span><b style="color:var(--danger)">${sumMonth.abnormalOut}</b></div>
+    </div>
+    <p class="hint" style="text-align:center;">顺丰件占比: ${sum7.inbound ? ((sum7.sfInbound / sum7.inbound) * 100).toFixed(1) + '%' : '未记录'}</p >
+  `;
+}
+
+// 时段流量
+document.getElementById('form-hourly').addEventListener('submit', e => {
+  e.preventDefault();
+  const date = $('#h-date').value || todayStr();
+  const hour = $('#h-hour').value;
+  const rec = { id: uid(), date, hour, count: num($('#h-count').value), note: $('#h-note').value.trim(), ts: Date.now() };
+  const list = load(KEYS.hourly);
+  const idx = list.findIndex(r => r.date===date && r.hour===hour);
+  if(idx >= 0){
+    if(!confirm(date + ' ' + hour + ' 已有记录，是否覆盖？')) return;
+    rec.id = list[idx].id; list[idx] = rec;
+  } else { list.push(rec); }
+  list.sort((a,b) => { if(a.date!==b.date) return a.date<b.date?1:-1; return a.hour<b.hour?-1:1; });
+  save(KEYS.hourly, list);
+  e.target.reset(); $('#h-date').value = todayStr(); toast('已保存 ✓');
+});
+// 数据管理与可视化渲染
+let chartTrend, chartHour;
+function renderData(){
+  const daily = load(KEYS.daily);
+  const hourly = load(KEYS.hourly);
+  document.getElementById('stat-daily').textContent = daily.length;
+  document.getElementById('stat-hourly').textContent = hourly.length;
+  document.getElementById('stat-wait').textContent = '0'; 
+
+  document.getElementById('list-daily').innerHTML = daily.length ? daily.map(r => `
+    <div class="rec">
+      <div class="rec-main">
+        <div class="rec-title">${r.date} <span style="font-size:12px;font-weight:normal;color:#64748b;">[${r.flowMode||'未标记'}]</span></div>
+        <div class="rec-sub">入库 ${r.inbound} · 签收 ${r.outbound} · 异常出库 ${r.abnormalOut||0} · 寄件 ${r.send} · 在岗 ${r.staff||0}人 · 顺丰 ${r.sfInbound||0}</div>
+        ${r.note ? `<div class="rec-note">${escapeHtml(r.note)}</div>` : ''}
+      </div>
+      <button class="btn-del" onclick="delRec('daily','${r.id}')">删除</button>
+    </div>
+  `).join('') : '<p class="empty">暂无记录</p >';
+
+  if(!chartTrend) chartTrend = echarts.init(document.getElementById('chart-trend'));
+  if(!chartHour) chartHour = echarts.init(document.getElementById('chart-hour'));
+
+  const recentDaily = daily.slice(0, 14).reverse();
+  chartTrend.setOption({
+    title: { text: '近14日出入库趋势', left: 'center', textStyle: { fontSize: 14 } },
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['入库量', '签收量', '异常出库'], bottom: 0, textStyle: { fontSize: 11 } },
+    xAxis: { type: 'category', data: recentDaily.map(r => r.date.slice(5)), axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'value' },
+    series: [
+      { name: '入库量', type: 'line', data: recentDaily.map(r => r.inbound), smooth: true, itemStyle: { color: '#2563eb' } },
+      { name: '签收量', type: 'line', data: recentDaily.map(r => r.outbound), smooth: true, itemStyle: { color: '#059669' } },
+      { name: '异常出库', type: 'bar', data: recentDaily.map(r => r.abnormalOut||0), itemStyle: { color: '#dc2626' } }
+    ],
+    grid: { left: '12%', right: '5%', bottom: '15%', top: '15%' }
+  });
+
+  const hourlyGroup = {};
+  hourly.forEach(r => { hourlyGroup[r.hour] = (hourlyGroup[r.hour] || 0) + r.count; });
+  const sortedHours = Object.keys(hourlyGroup).sort();
+  chartHour.setOption({
+    title: { text: '时段取件人数分布', left: 'center', textStyle: { fontSize: 14 } },
+    tooltip: { trigger: 'axis' },
+    xAxis: { type: 'category', data: sortedHours, axisLabel: { fontSize: 10, rotate: 45 } },
+    yAxis: { type: 'value' },
+    series: [{ name: '取件人数', type: 'bar', data: sortedHours.map(h => hourlyGroup[h]), itemStyle: { color: '#2563eb' } }],
+    grid: { left: '12%', right: '5%', bottom: '20%', top: '15%' }
+  });
+}
+window.delRec = function(type, id){
+  if(!confirm('确定删除这条记录？')) return;
+  save(KEYS[type], load(KEYS[type]).filter(r => r.id !== id));
+  renderData(); if(type==='daily') { renderToday(); renderDailySummary(); } toast('已删除');
+};
+
+window.exportDaily = function(){
+  const list = load(KEYS.daily); if(!list.length) return toast('暂无数据');
+  const headers = ['日期','业务模式','入库量','签收量','寄件量','异常出库','在岗人数','顺丰入库','其他品牌入库','备注'];
+  const rows = list.map(r => [r.date, r.flowMode||'', r.inbound, r.outbound, r.send, r.abnormalOut||0, r.staff||0, r.sfInbound||0, r.otherInbound||0, r.note]);
+  download('驿站每日数据_' + todayStr() + '.csv', toCSV(headers, rows));
+};
+
+window.backupAll = function(){
+  const data = { daily: load(KEYS.daily), hourly: load(KEYS.hourly), exportedAt: new Date().toISOString() };
+  download('驿站数据备份_' + todayStr() + '.json', JSON.stringify(data, null, 2), 'application/json');
+};
+
+document.getElementById('file-import').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const data = JSON.parse(ev.target.result);
+      ['daily','hourly'].forEach(k => {
+        if(Array.isArray(data[k])){
+          const cur = load(KEYS[k]); const map = new Map(cur.map(r=>[r.id,r]));
+          data[k].forEach(r => map.set(r.id,r));
+          save(KEYS[k], Array.from(map.values()));
+        }
+      });
+      renderData(); renderToday(); renderDailySummary(); toast('导入成功 ✓');
+    }catch(err){ alert('导入失败：' + err.message); }
+  };
+  reader.readAsText(f); e.target.value='';
+});
+
+window.clearAll = function(){
+  if(!confirm('确定清空全部数据？此操作不可恢复！')) return;
+  Object.values(KEYS).forEach(k => localStorage.removeItem(k));
+  renderData(); renderToday(); renderDailySummary(); toast('已清空');
+};
+
+(function init(){
+  const t = todayStr();
+  document.querySelectorAll('input[type=date]').forEach(el => el.value = t);
+  renderToday(); renderDailySummary();
+})();
+</script>
+</body>
+</html>
