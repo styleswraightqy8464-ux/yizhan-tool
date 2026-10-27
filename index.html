@@ -63,6 +63,7 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
 .summary-item span{font-size:12px;color:var(--muted);display:block;}
 .summary-item b{font-size:16px;color:#1e40af;}
 .chart-container{width:100%;height:250px;margin-top:10px;}
+
 /* 批量导入模态框样式 */
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;}
 .modal-overlay.show{display:flex;}
@@ -79,6 +80,7 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
 .preview-table input[type="text"], .preview-table input[type="number"]{width:100%;border:1px solid transparent;background:transparent;text-align:center;font-size:13px;padding:4px;border-radius:4px;}
 .preview-table input:focus{border-color:var(--primary);background:#fff;outline:none;}
 .preview-table .del-btn{color:var(--danger);cursor:pointer;background:none;border:none;font-size:14px;}
+
 /* 图表日期过滤器 */
 .chart-filter{display:flex;gap:8px;align-items:center;margin-bottom:12px;background:#f8fafc;padding:10px;border-radius:8px;flex-wrap:wrap;}
 .chart-filter input{flex:1;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;}
@@ -104,10 +106,10 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
       <div class="card-title">记录每日数据</div>
       
       <input type="file" id="ocr-input" accept="image/*" capture="environment" style="display:none">
-      <button type="button" class="btn-ocr" id="btn-ocr-trigger" onclick="document.getElementById('ocr-input').click()">📷 单日看板识别（图1）</button>
+      <button type="button" class="btn-ocr" onclick="document.getElementById('ocr-input').click()">📷 单日看板识别（图1）</button>
       
       <input type="file" id="batch-ocr-input" accept="image/*" multiple style="display:none">
-      <button type="button" class="btn-batch" id="btn-batch-ocr-trigger" onclick="document.getElementById('batch-ocr-input').click()">📦 批量导入多日明细（图2）</button>
+      <button type="button" class="btn-batch" onclick="document.getElementById('batch-ocr-input').click()">📦 批量导入多日明细（图2）</button>
 
       <div class="field">
         <label for="d-date">日期</label>
@@ -183,7 +185,6 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
 
     <div class="card">
       <div class="card-title">趋势与结构分析</div>
-      <!-- 新增的日期过滤器 -->
       <div class="chart-filter">
         <input type="date" id="chart-start-date" title="开始日期">
         <span style="color:var(--muted);font-size:12px;">至</span>
@@ -245,9 +246,7 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
               <th style="width:40px;">操作</th>
             </tr>
           </thead>
-          <tbody id="preview-tbody">
-            <!-- 动态插入 -->
-          </tbody>
+          <tbody id="preview-tbody"></tbody>
         </table>
       </div>
     </div>
@@ -280,13 +279,13 @@ function download(name, content, type){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
-// ================= 新增：自动联动业务模式 =================
+// ================= 自动联动业务模式 =================
 document.getElementById('d-date').addEventListener('change', function() {
   const selectedDate = this.value;
   const flowModeSelect = document.getElementById('d-flow-mode');
   if(!selectedDate) return;
   
-  // 设定分界线日期：2026-09-07（你可根据实际情况修改年份）
+  // 注意：这里的年份请根据你实际的分界年份修改，目前按 2026 年设定
   if (selectedDate < '2026-09-07') {
     flowModeSelect.value = '简化前';
   } else {
@@ -307,13 +306,18 @@ document.querySelectorAll('.tab').forEach(t => {
   });
 });
 
-// ================= OCR 相关逻辑（保留） =================
+// ================= OCR 逻辑 =================
+let ocrResultsQueue = [];
 document.getElementById('ocr-input').addEventListener('change', async function(e) {
-  // ... (此处代码保持之前原样，为了篇幅未改动，你复制原代码即可)
+  toast('单日识别功能暂未连接后端服务');
+  e.target.value = '';
 });
-// ... (批量导入和 parseTableData 等代码同样保持原样)
+document.getElementById('batch-ocr-input').addEventListener('change', async function(e) {
+  toast('批量识别功能暂未连接后端服务');
+  e.target.value = '';
+});
 
-// ================= 每日汇总 =================
+// ================= 每日汇总录入 =================
 document.getElementById('form-daily').addEventListener('submit', e => {
   e.preventDefault();
   const date = $('#d-date').value || todayStr();
@@ -341,20 +345,81 @@ document.getElementById('form-daily').addEventListener('submit', e => {
   
   e.target.reset();
   $('#d-date').value = todayStr();
-  // 重置后触发一次联动
   $('#d-date').dispatchEvent(new Event('change'));
   
   toast('已保存 ✓'); renderToday(); renderDailySummary();
 });
 
-// ... (renderToday 和 renderDailySummary 等代码保持原样)
+function renderToday(){
+  const rec = load(KEYS.daily).find(r => r.date === todayStr());
+  const el = $('#today-box');
+  if(!rec){ el.innerHTML = '<p class="empty" style="grid-column:1/-1">今日暂无记录</p>'; return; }
+  el.innerHTML = `
+    <div class="kv"><span>入库</span><b>${rec.inbound}</b></div>
+    <div class="kv"><span>签收</span><b>${rec.outbound}</b></div>
+    <div class="kv"><span>异常出库</span><b style="color:var(--danger)">${rec.abnormalOut||0}</b></div>
+    <div class="kv"><span>寄件</span><b>${rec.send}</b></div>
+  `;
+}
 
-// ================= 数据与图表 =================
+function renderDailySummary(){
+  const list = load(KEYS.daily);
+  if(!list.length){ $('#summary-display').innerHTML = '<p class="empty">暂无数据</p>'; return; }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 6);
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  
+  let sum7 = { inbound:0, outbound:0, abnormalOut:0, send:0, sfInbound:0 };
+  let sumMonth = { inbound:0, outbound:0, abnormalOut:0, send:0, sfInbound:0 };
+  
+  list.forEach(r => {
+    const d = new Date(r.date); d.setHours(0,0,0,0);
+    if(d >= sevenDaysAgo){ sum7.inbound+=r.inbound||0; sum7.outbound+=r.outbound||0; sum7.abnormalOut+=r.abnormalOut||0; sum7.send+=r.send||0; sum7.sfInbound+=r.sfInbound||0; }
+    if(d >= firstOfMonth){ sumMonth.inbound+=r.inbound||0; sumMonth.outbound+=r.outbound||0; sumMonth.abnormalOut+=r.abnormalOut||0; sumMonth.send+=r.send||0; sumMonth.sfInbound+=r.sfInbound||0; }
+  });
+  
+  const rate7 = sum7.inbound ? ((sum7.outbound / sum7.inbound) * 100).toFixed(2) + '%' : '0%';
+  const rateMonth = sumMonth.inbound ? ((sumMonth.outbound / sumMonth.inbound) * 100).toFixed(2) + '%' : '0%';
+  
+  $('#summary-display').innerHTML = `
+    <div class="summary-box">
+      <div class="summary-item"><span>近7日入库</span><b>${sum7.inbound}</b></div>
+      <div class="summary-item"><span>近7日签收</span><b>${sum7.outbound}</b></div>
+      <div class="summary-item"><span>近7日出库率</span><b>${rate7}</b></div>
+      <div class="summary-item"><span>近7日异常出库</span><b style="color:var(--danger)">${sum7.abnormalOut}</b></div>
+    </div>
+    <div class="summary-box" style="background:#f0fdf4;">
+      <div class="summary-item"><span>当月入库</span><b>${sumMonth.inbound}</b></div>
+      <div class="summary-item"><span>当月签收</span><b>${sumMonth.outbound}</b></div>
+      <div class="summary-item"><span>当月出库率</span><b>${rateMonth}</b></div>
+      <div class="summary-item"><span>当月异常出库</span><b style="color:var(--danger)">${sumMonth.abnormalOut}</b></div>
+    </div>
+    <p class="hint" style="text-align:center;">顺丰件占比: ${sum7.inbound ? ((sum7.sfInbound / sum7.inbound) * 100).toFixed(1) + '%' : '未记录'}</p>
+  `;
+}
+
+// ================= 时段流量录入 =================
+document.getElementById('form-hourly').addEventListener('submit', e => {
+  e.preventDefault();
+  const date = $('#h-date').value || todayStr();
+  const hour = $('#h-hour').value;
+  const rec = { id: uid(), date, hour, count: num($('#h-count').value), note: $('#h-note').value.trim(), ts: Date.now() };
+  const list = load(KEYS.hourly);
+  const idx = list.findIndex(r => r.date===date && r.hour===hour);
+  if(idx >= 0){
+    if(!confirm(date + ' ' + hour + ' 已有记录，是否覆盖？')) return;
+    rec.id = list[idx].id; list[idx] = rec;
+  } else { list.push(rec); }
+  list.sort((a,b) => { if(a.date!==b.date) return a.date<b.date?1:-1; return a.hour<b.hour?-1:1; });
+  save(KEYS.hourly, list);
+  e.target.reset(); $('#h-date').value = todayStr(); toast('已保存 ✓');
+});
+
+// ================= 图表与过滤逻辑 =================
 let chartTrend, chartHour;
 
-// 新增：图表日期选择与重置逻辑
 window.updateChartRange = function() {
-  renderData(); // 重新渲染图表
+  renderData();
 };
 
 window.resetChartRange = function() {
@@ -368,8 +433,8 @@ function renderData(){
   const hourly = load(KEYS.hourly);
   document.getElementById('stat-daily').textContent = daily.length;
   document.getElementById('stat-hourly').textContent = hourly.length;
+  document.getElementById('stat-wait').textContent = '0'; 
 
-  // 渲染列表
   document.getElementById('list-daily').innerHTML = daily.length ? daily.map(r => `
     <div class="rec">
       <div class="rec-main">
@@ -384,14 +449,11 @@ function renderData(){
   if(!chartTrend) chartTrend = echarts.init(document.getElementById('chart-trend'));
   if(!chartHour) chartHour = echarts.init(document.getElementById('chart-hour'));
 
-  // 获取过滤日期
   const startDate = document.getElementById('chart-start-date').value;
   const endDate = document.getElementById('chart-end-date').value;
 
-  // 先按日期倒序排好
   let filteredDaily = daily.slice().sort((a,b) => a.date < b.date ? 1 : -1);
   
-  // 如果用户选了日期，进行过滤
   if (startDate || endDate) {
     filteredDaily = filteredDaily.filter(r => {
       let match = true;
@@ -400,11 +462,9 @@ function renderData(){
       return match;
     });
   } else {
-    // 如果没选日期，默认还是只显示最近14天（原逻辑），防止数据太多挤在一起
     filteredDaily = filteredDaily.slice(0, 14);
   }
 
-  // 图表数据需要按时间正序排列
   const recentDaily = filteredDaily.reverse();
 
   chartTrend.setOption({
@@ -419,9 +479,8 @@ function renderData(){
       { name: '异常出库', type: 'bar', data: recentDaily.map(r => r.abnormalOut||0), itemStyle: { color: '#dc2626' } }
     ],
     grid: { left: '12%', right: '5%', bottom: '15%', top: '15%' }
-  }, true); // 注意这里传入 true，代表不合并旧数据，完全重绘，防止残留
+  }, true);
 
-  // 柱状图逻辑不变
   const hourlyGroup = {};
   hourly.forEach(r => { hourlyGroup[r.hour] = (hourlyGroup[r.hour] || 0) + r.count; });
   const sortedHours = Object.keys(hourlyGroup).sort();
@@ -435,4 +494,58 @@ function renderData(){
   }, true);
 }
 
-// ... (后续代码如 window.delRec, exportDaily, 备份恢复等全部保持原样)
+window.delRec = function(type, id){
+  if(!confirm('确定删除这条记录？')) return;
+  save(KEYS[type], load(KEYS[type]).filter(r => r.id !== id));
+  renderData(); if(type==='daily') { renderToday(); renderDailySummary(); } toast('已删除');
+};
+
+// ================= 导入导出 =================
+window.exportDaily = function(){
+  const list = load(KEYS.daily); if(!list.length) return toast('暂无数据');
+  const headers = ['日期','业务模式','入库量','签收量','寄件量','异常出库','在岗人数','顺丰入库','其他品牌入库','备注'];
+  const rows = list.map(r => [r.date, r.flowMode||'', r.inbound, r.outbound, r.send, r.abnormalOut||0, r.staff||0, r.sfInbound||0, r.otherInbound||0, r.note]);
+  download('驿站每日数据_' + todayStr() + '.csv', toCSV(headers, rows));
+};
+
+window.backupAll = function(){
+  const data = { daily: load(KEYS.daily), hourly: load(KEYS.hourly), exportedAt: new Date().toISOString() };
+  download('驿站数据备份_' + todayStr() + '.json', JSON.stringify(data, null, 2), 'application/json');
+};
+
+document.getElementById('file-import').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const data = JSON.parse(ev.target.result);
+      ['daily','hourly'].forEach(k => {
+        if(Array.isArray(data[k])){
+          const cur = load(KEYS[k]); const map = new Map(cur.map(r=>[r.id,r]));
+          data[k].forEach(r => map.set(r.id,r));
+          save(KEYS[k], Array.from(map.values()));
+        }
+      });
+      renderData(); renderToday(); renderDailySummary(); toast('导入成功 ✓');
+    }catch(err){ alert('导入失败：' + err.message); }
+  };
+  reader.readAsText(f); e.target.value='';
+});
+
+window.clearAll = function(){
+  if(!confirm('确定清空全部数据？此操作不可恢复！')) return;
+  Object.values(KEYS).forEach(k => localStorage.removeItem(k));
+  renderData(); renderToday(); renderDailySummary(); toast('已清空');
+};
+
+// ================= 启动初始化 =================
+(function init(){
+  const t = todayStr();
+  document.querySelectorAll('input[type=date]').forEach(el => el.value = t);
+  $('#d-date').dispatchEvent(new Event('change')); // 触发一次自动选择业务模式
+  renderToday(); 
+  renderDailySummary();
+})();
+</script>
+</body>
+</html>
