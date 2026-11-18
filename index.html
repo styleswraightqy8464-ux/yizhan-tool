@@ -4,11 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2563eb">
-<title>顺丰驿站数据记录与可视化</title>
-<link rel="manifest" href='data:application/manifest+json,{"name":"顺丰驿站数据记录","short_name":"驿站数据","start_url":"https://styleswraightqy8464-ux.github.io/yizhan-tool/","scope":"https://styleswraightqy8464-ux.github.io/yizhan-tool/","display":"standalone","background_color":"#f1f5f9","theme_color":"#2563eb"}'>
+<title>顺丰驿站数据记录与可视化 V5</title>
+<!-- V5 / 2026-11-17：字段瘦身、取件计时、透视汇总、天气自动带出 -->
+<link rel="manifest" href='data:application/manifest+json,{"name":"顺丰驿站数据记录","short_name":"驿站数据","start_url":"./","display":"standalone","background_color":"#f1f5f9","theme_color":"#2563eb"}'>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <style>
-:root{--primary:#2563eb;--primary-dark:#1d4ed8;--bg:#f1f5f9;--card:#fff;--text:#0f172a;--muted:#64748b;--border:#e2e8f0;--danger:#dc2626;--radius:14px;}
+:root{--primary:#2563eb;--primary-dark:#1d4ed8;--bg:#f1f5f9;--card:#fff;--text:#0f172a;--muted:#64748b;--border:#e2e8f0;--danger:#dc2626;--ok:#059669;--radius:14px;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.55;padding-bottom:calc(72px + env(safe-area-inset-bottom));}
@@ -23,15 +24,13 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
 .field{margin-bottom:12px;}
 .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px;font-weight:500;}
 .field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:16px;font-family:inherit;background:#f8fafc;outline:none;}
-.field select{appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.6' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;}
+.field select{appearance:none;padding-right:34px;}
 .field input:focus,.field select:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.1);}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 8px;}
 @media(max-width:380px){.grid3{grid-template-columns:1fr 1fr;}}
 .btn-primary{width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:11px;font-size:16px;font-weight:600;cursor:pointer;margin-top:6px;font-family:inherit;}
 .btn-primary:active{background:var(--primary-dark);}
-.btn-ocr{width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:600;margin-bottom:12px;cursor:pointer;}
-.btn-batch{width:100%;padding:12px;background:#059669;color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:600;margin-bottom:12px;cursor:pointer;}
 .today-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
 .kv{text-align:center;background:#f1f5f9;border-radius:10px;padding:10px 4px;}
 .kv span{display:block;font-size:11px;color:var(--muted);margin-bottom:3px;}
@@ -55,7 +54,7 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
 .tab{flex:1;padding:9px 4px;text-align:center;font-size:11.5px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;}
 .tab.active{color:var(--primary);font-weight:600;}
 .tab .ico{font-size:19px;line-height:1;}
-.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(15,23,42,.92);color:#fff;padding:9px 20px;border-radius:20px;font-size:13.5px;opacity:0;transition:all .25s;z-index:999;}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(15,23,42,.92);color:#fff;padding:9px 20px;border-radius:20px;font-size:13.5px;opacity:0;transition:all .25s;z-index:999;pointer-events:none;}
 .toast.show{opacity:1;}
 .hint{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.6;}
 .summary-box{background:#eff6ff;border-radius:10px;padding:12px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;}
@@ -63,35 +62,43 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
 .summary-item span{font-size:12px;color:var(--muted);display:block;}
 .summary-item b{font-size:16px;color:#1e40af;}
 .chart-container{width:100%;height:250px;margin-top:10px;}
-
-/* 批量导入模态框样式 */
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;}
-.modal-overlay.show{display:flex;}
-.modal-content{background:#fff;border-radius:14px;width:100%;max-width:600px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;}
-.modal-header{padding:16px;border-bottom:1px solid var(--border);font-weight:600;font-size:16px;display:flex;justify-content:space-between;align-items:center;}
-.modal-body{padding:16px;overflow-y:auto;flex:1;}
-.modal-footer{padding:16px;border-top:1px solid var(--border);display:flex;gap:10px;}
-.modal-footer button{flex:1;padding:12px;border-radius:10px;border:none;font-size:15px;font-weight:600;cursor:pointer;}
-.btn-cancel{background:#f1f5f9;color:var(--text);}
-.btn-confirm{background:var(--primary);color:#fff;}
-.preview-table{width:100%;border-collapse:collapse;font-size:13px;}
-.preview-table th,.preview-table td{border:1px solid var(--border);padding:6px;text-align:center;}
-.preview-table th{background:#f8fafc;font-weight:500;color:var(--muted);}
-.preview-table input[type="text"], .preview-table input[type="number"]{width:100%;border:1px solid transparent;background:transparent;text-align:center;font-size:13px;padding:4px;border-radius:4px;}
-.preview-table input:focus{border-color:var(--primary);background:#fff;outline:none;}
-.preview-table .del-btn{color:var(--danger);cursor:pointer;background:none;border:none;font-size:14px;}
-
-/* 图表日期过滤器 */
 .chart-filter{display:flex;gap:8px;align-items:center;margin-bottom:12px;background:#f8fafc;padding:10px;border-radius:8px;flex-wrap:wrap;}
 .chart-filter input{flex:1;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;}
 .chart-filter button{padding:6px 12px;background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;}
+
+/* 天气条 */
+.wx-bar{display:flex;align-items:center;gap:8px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:9px 12px;font-size:13px;color:#075985;margin-bottom:12px;}
+.wx-bar b{font-size:15px;}
+.wx-hot{background:#fef2f2;border-color:#fecaca;color:#991b1b;}
+
+/* 计时 */
+.timer-box{text-align:center;padding:10px 0 4px;}
+.timer-num{font-size:52px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--primary);line-height:1.1;}
+.timer-num.run{color:var(--ok);}
+.timer-hint{font-size:12.5px;color:var(--muted);margin-top:4px;}
+.btn-timer{width:100%;padding:16px;border:none;border-radius:12px;font-size:17px;font-weight:700;color:#fff;background:var(--ok);cursor:pointer;margin-top:12px;font-family:inherit;}
+.btn-timer.stop{background:var(--danger);}
+.check-row{display:flex;align-items:center;gap:10px;padding:10px 0;font-size:14px;}
+.check-row input{width:22px;height:22px;}
+.mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
+.mini-stats .kv b{font-size:17px;}
+
+/* 透视表 */
+.pivot-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.pivot-controls select{flex:1;min-width:130px;padding:9px;border:1px solid var(--border);border-radius:9px;font-size:14px;background:#f8fafc;font-family:inherit;}
+.pivot-wrap{overflow-x:auto;}
+.pivot-table{width:100%;border-collapse:collapse;font-size:13px;}
+.pivot-table th,.pivot-table td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:right;white-space:nowrap;}
+.pivot-table th{background:#f8fafc;color:var(--muted);font-weight:600;text-align:right;}
+.pivot-table th:first-child,.pivot-table td:first-child{text-align:left;font-weight:600;}
+.pivot-table tbody tr:hover{background:#f8fafc;}
 </style>
 </head>
 <body>
 
 <header class="app-header">
   <h1>顺丰驿站数据记录</h1>
-  <p class="sub">广州工商学院 · 流程优化研究数据采集</p>
+  <p class="sub">广州工商学院 · 流程优化研究数据采集 · V5</p>
 </header>
 
 <main>
@@ -104,18 +111,15 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
 
     <form class="card" id="form-daily">
       <div class="card-title">记录每日数据</div>
-      
-      <input type="file" id="ocr-input" accept="image/*" capture="environment" style="display:none">
-      <button type="button" class="btn-ocr" onclick="document.getElementById('ocr-input').click()">📷 单日看板识别（图1）</button>
-      
-      <input type="file" id="batch-ocr-input" accept="image/*" multiple style="display:none">
-      <button type="button" class="btn-batch" onclick="document.getElementById('batch-ocr-input').click()">📦 批量导入多日明细（图2）</button>
+      <p class="hint" style="margin:-6px 0 12px;">异常量＝异常件总数（含当天滞留件的处理结果）；国补件、待电联件不单列、不计入。</p>
 
       <div class="field">
         <label for="d-date">日期</label>
         <input type="date" id="d-date" required>
       </div>
-      
+
+      <div id="wx-bar" class="wx-bar" style="display:none;"></div>
+
       <div class="grid3">
         <div class="field"><label for="d-inbound">今日入库（件）</label><input type="number" id="d-inbound" inputmode="numeric" min="0" placeholder="0" required></div>
         <div class="field"><label for="d-outbound">今日签收（件）</label><input type="number" id="d-outbound" inputmode="numeric" min="0" placeholder="0" required></div>
@@ -123,17 +127,12 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
       </div>
 
       <div class="grid2">
-        <div class="field"><label for="d-sf-inbound">顺丰件入库（件）</label><input type="number" id="d-sf-inbound" inputmode="numeric" min="0" placeholder="0"></div>
-        <div class="field"><label for="d-other-inbound">其他品牌入库（件）</label><input type="number" id="d-other-inbound" inputmode="numeric" min="0" placeholder="0"></div>
-      </div>
-
-      <div class="grid2">
-        <div class="field"><label for="d-abnormal-out">异常出库量（件）</label><input type="number" id="d-abnormal-out" inputmode="numeric" min="0" placeholder="滞留/改约等"></div>
+        <div class="field"><label for="d-abnormal">异常量（件）</label><input type="number" id="d-abnormal" inputmode="numeric" min="0" placeholder="滞留/改约等"></div>
         <div class="field"><label for="d-staff">在岗人数（人）</label><input type="number" id="d-staff" inputmode="numeric" min="0" placeholder="0"></div>
       </div>
 
       <div class="field">
-        <label for="d-flow-mode">业务模式（9月7日前后）</label>
+        <label for="d-flow-mode">业务模式（2026-09-07 前后）</label>
         <select id="d-flow-mode">
           <option value="简化前">简化前（9月7日前）</option>
           <option value="简化后">简化后（9月7日后）</option>
@@ -144,64 +143,99 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
         <label for="d-note">备注</label>
         <input type="text" id="d-note" placeholder="如：系统故障、下雨等特殊原因">
       </div>
+      <p class="hint" id="warn-daily" style="color:#b45309;display:none;"></p>
       <button type="submit" class="btn-primary">保存记录</button>
     </form>
 
     <div class="card">
-      <div class="card-title">近7日与当月汇总</div>
+      <div class="card-title">近 7 日与当月汇总</div>
       <div id="summary-display"></div>
     </div>
   </section>
 
-  <!-- ============ 时段流量 ============ -->
-  <section class="panel" id="panel-hourly">
-    <form class="card" id="form-hourly">
-      <div class="card-title">记录时段取件人数（9:00-20:00）</div>
-      <div class="field"><label for="h-date">日期</label><input type="date" id="h-date" required></div>
-      <div class="field">
-        <label for="h-hour">时段</label>
-        <select id="h-hour" required>
-          <option value="09:00-10:00">09:00-10:00</option><option value="10:00-11:00">10:00-11:00</option>
-          <option value="11:00-12:00">11:00-12:00</option><option value="12:00-13:00">12:00-13:00</option>
-          <option value="13:00-14:00">13:00-14:00</option><option value="14:00-15:00">14:00-15:00</option>
-          <option value="15:00-16:00">15:00-16:00</option><option value="16:00-17:00">16:00-17:00</option>
-          <option value="17:00-18:00">17:00-18:00</option><option value="18:00-19:00">18:00-19:00</option>
-          <option value="19:00-20:00">19:00-20:00</option>
-        </select>
+  <!-- ============ 取件计时 ============ -->
+  <section class="panel" id="panel-timing">
+    <div class="card">
+      <div class="card-title">取件计时（一人一单）</div>
+      <p class="hint" style="margin:-6px 0 6px;">按一下开始，客户拿到包裹时再按一下停。从“客户报取件码/单号”计到“包裹递到手上”。</p>
+      <div class="timer-box">
+        <div class="timer-num" id="timer-num">00.0</div>
+        <div class="timer-hint" id="timer-hint">未开始</div>
       </div>
-      <div class="field"><label for="h-count">该时段取件人数（人）</label><input type="number" id="h-count" inputmode="numeric" min="0" placeholder="0" required></div>
-      <div class="field"><label for="h-note">备注</label><input type="text" id="h-note" placeholder="如：下课高峰、下雨等"></div>
-      <button type="submit" class="btn-primary">保存记录</button>
-    </form>
-  </section>
+      <button type="button" class="btn-timer" id="btn-timer">开始计时</button>
 
-  <!-- ============ 数据管理与可视化 ============ -->
-  <section class="panel" id="panel-data">
-    <div class="stats">
-      <div class="stat"><b id="stat-daily">0</b><span>每日记录</span></div>
-      <div class="stat"><b id="stat-hourly">0</b><span>时段记录</span></div>
-      <div class="stat"><b id="stat-wait">0</b><span>等待样本</span></div>
+      <div class="check-row">
+        <input type="checkbox" id="t-needsearch">
+        <label for="t-needsearch">这一单需要查单/找件困难（信息不全、要翻货架）</label>
+      </div>
+      <div class="field">
+        <label for="t-note">备注（选填）</label>
+        <input type="text" id="t-note" placeholder="如：大件、代取、系统卡顿">
+      </div>
     </div>
 
     <div class="card">
-      <div class="card-title">趋势与结构分析</div>
+      <div class="card-title">样本统计</div>
+      <div class="mini-stats" id="timing-stats"></div>
+      <p class="hint" id="timing-hint"></p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">最近样本（点击删除）</div>
+      <div id="timing-list"></div>
+      <div class="btn-row"><button class="btn-sm" onclick="exportTiming()">导出计时 CSV</button></div>
+    </div>
+  </section>
+
+  <!-- ============ 数据与图表 ============ -->
+  <section class="panel" id="panel-data">
+    <div class="stats">
+      <div class="stat"><b id="stat-daily">0</b><span>每日记录</span></div>
+      <div class="stat"><b id="stat-timing">0</b><span>计时样本</span></div>
+      <div class="stat"><b id="stat-days">0</b><span>覆盖天数</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">趋势分析</div>
       <div class="chart-filter">
         <input type="date" id="chart-start-date" title="开始日期">
         <span style="color:var(--muted);font-size:12px;">至</span>
         <input type="date" id="chart-end-date" title="结束日期">
-        <button onclick="updateChartRange()">查询</button>
+        <button onclick="renderData()">查询</button>
         <button onclick="resetChartRange()" style="background:#64748b;">重置</button>
       </div>
-      
       <div id="chart-trend" class="chart-container"></div>
       <div id="chart-hour" class="chart-container"></div>
-      <p class="hint">折线图展示每日出入库量及异常出库趋势，柱状图展示时段取件人数分布。</p>
+      <p class="hint">折线：每日入库量、签收量、异常量；柱状：时段取件人数分布。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">透视汇总</div>
+      <div class="pivot-controls">
+        <select id="pivot-dim">
+          <option value="mode">按业务模式（简化前/后）</option>
+          <option value="month">按月</option>
+          <option value="week">按周</option>
+          <option value="weekday">按星期</option>
+          <option value="weather">按天气</option>
+          <option value="day">按日</option>
+        </select>
+        <select id="pivot-metric">
+          <option value="inbound">入库量</option>
+          <option value="outbound">签收量</option>
+          <option value="abnormal">异常量</option>
+          <option value="send">寄件量</option>
+          <option value="staff">在岗人数</option>
+        </select>
+      </div>
+      <div class="pivot-wrap"><table class="pivot-table" id="pivot-table"></table></div>
+      <div id="chart-pivot" class="chart-container"></div>
     </div>
 
     <div class="card">
       <div class="card-title">每日数据（点击删除）</div>
       <div id="list-daily"></div>
-      <div class="btn-row"><button class="btn-sm" onclick="exportDaily()">导出每日CSV</button></div>
+      <div class="btn-row"><button class="btn-sm" onclick="exportDaily()">导出每日 CSV</button></div>
     </div>
 
     <div class="card">
@@ -212,339 +246,528 @@ main{max-width:680px;margin:0 auto;padding:14px 12px 20px;}
         <button class="btn-sm danger" onclick="clearAll()">清空全部数据</button>
       </div>
       <input type="file" id="file-import" accept=".json" style="display:none">
-      <p class="hint">建议每周导出一次JSON备份文件，防止数据丢失。</p>
+      <p class="hint">每周导出一次 JSON 备份。旧版（V4）备份也能直接导入，异常出库量会自动转成异常量。</p>
     </div>
   </section>
 </main>
 
 <nav class="bottom-nav">
   <button class="tab active" data-tab="daily"><span class="ico">📋</span>每日汇总</button>
-  <button class="tab" data-tab="hourly"><span class="ico">⏰</span>时段流量</button>
+  <button class="tab" data-tab="timing"><span class="ico">⏱️</span>取件计时</button>
   <button class="tab" data-tab="data"><span class="ico">📊</span>数据与图表</button>
 </nav>
 <div class="toast" id="toast"></div>
 
-<!-- 批量导入预览模态框 -->
-<div class="modal-overlay" id="preview-modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <span>批量识别结果预览</span>
-      <span style="font-size:12px;color:var(--muted);cursor:pointer;" onclick="closePreview()">✕ 关闭</span>
-    </div>
-    <div class="modal-body">
-      <p class="hint" style="margin-top:0;">请核对识别结果，如有误可直接在表格中修改。确认无误后点击“确认导入”。</p>
-      <div style="overflow-x:auto;">
-        <table class="preview-table" id="preview-table">
-          <thead>
-            <tr>
-              <th style="width:40px;">选择</th>
-              <th>日期</th>
-              <th>入库量</th>
-              <th>签收量</th>
-              <th>异常出库<br>(退回量)</th>
-              <th>在岗人数</th>
-              <th style="width:40px;">操作</th>
-            </tr>
-          </thead>
-          <tbody id="preview-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" onclick="closePreview()">取消</button>
-      <button class="btn-confirm" onclick="confirmBatchImport()">确认导入</button>
-    </div>
-  </div>
-</div>
-
 <script>
-const $ = s => document.querySelector(s);
-const KEYS = { daily:'yz_daily_v4', hourly:'yz_hourly_v4' };
+/* ================= 天气表（Open-Meteo 历史档案，三水 23.16N/112.90E） ================= */
+var WX_START = '2026-05-24';
+var WX_RAW = '0.9,33.9|0.2,34.4|1,34.7|0,34.9|0.4,35.8|1.5,35.8|2.3,33.6|5.8,32|5.4,33.1|5.6,32.6|1.3,34.8|2.3,34.7|13.3,33.1|21.6,30.4|14.4,32.5|38.7,32.9|1.6,28.8|0.1,29.3|0,31.6|3.4,31.7|15.5,31.5|33.9,28.2|56.3,28.8|39.7,28.8|48.3,31.6|23,26.5|10.1,30.9|0.9,34.2|1.1,33.9|1,34.2|2.6,34.2|2,34.6|23.8,33.6|21.8,32|10.4,31.9|34.9,29.7|12.3,31.6|8.3,31.1|2.8,32.8|4.7,33.9|14.6,31.9|27.7,29.8|16.8,31.8|15.8,30|30.4,30.4|11,30.6|20.8,30.5|1.2,33.1|0,34.8|0.1,36.4|2.2,35.2|31.1,31.7|29.3,29.6|6.2,29.7|14.2,31.5|21,31.4|8.2,32.4|20.1,30.6|38,29.7|2.6,33.1|0.2,33.9|0,33.7|14.9,35.4|21.1,30.6|0.8,32.3|19.2,30.9|27.8,28.3|13.2,30|16.6,30.2|23.3,29.6|15,29.9|4.2,29.9|21.5,30.6|0.9,32|0.2,33.6|0.9,34.6|2.4,35.6|0.1,35.8|0.3,34.9|0,34.8|0,36.4|6.3,31.7|34.9,31.6|24.1,33.7|0.4,34.6|13.1,32.2|27,32|2.1,34.1|6.4,33.3|6.7,31.9|2.5,33.3|6.8,31.3|21.8,31.7|8,33.1|14.6,30.1|55.4,29.5|16.1,31.6|2.1,35.5|54.3,27.4|24,31.7|3.1,30.4|6.3,30.6|0,30.7|0.2,28.5|4.6,32|9.8,29.7|6.1,32.7|1.3,33|2.1,32.8|8.4,30.4|0.2,30.6|0.1,31.5|9,32.5|9.2,32.3|2.9,31.9|1,30.5|0.1,32.8|0.7,33|0.6,33.8|0.4,34.6|3.5,32.2|3.7,33.8|8.4,33|2.4,32.6|0.3,33.9|0.1,33.9|0.4,34.9|1.3,34.1|0.1,35.4|0.1,36.3|5.9,34.2|4.7,30|16.8,31.2|4.4,32|2,28.5|0,26.8|0,28.2|0,29.5|0,30.8|0,31.6|0,32.2|0,33.6|0,33.4|0,33.6|1.1,31.7|0,32.3|0.2,33.1|2.3,32.4|0,33.2|0,32.9|0.1,33|0,29.8|0,30.6|0,30.7|0,30.1|0,31.1|0,31.5|0,30|0.3,28.3|0,30.9|0.7,31.2|0.5,31.6|0.3,30.5|1.7,29.6|4.1,30.2|1.4,28.7|2.2,30.1|4.9,29.5|2,29.5|0,22.3|0,20.6|0,22.7|0,26.4|10.1,26.2|17.7,24.6|0,25.5|0,27.4|2.4,29.1';
+var WX = WX_RAW.split('|').map(function(s){ var a = s.split(','); return [parseFloat(a[0]), parseFloat(a[1])]; });
+
+function dayIndex(dateStr){
+  var p = dateStr.split('-').map(Number);
+  var t = Date.UTC(p[0], p[1]-1, p[2]);
+  var s = Date.UTC(2026, 4, 24);
+  return Math.round((t - s) / 86400000);
+}
+function wxOf(dateStr){
+  var i = dayIndex(dateStr);
+  if (i < 0 || i >= WX.length) return null;
+  var p = WX[i];
+  var lvl = p[0] < 0.5 ? '晴' : (p[0] < 10 ? '小雨' : (p[0] < 25 ? '中雨' : '大雨'));
+  return { rain: p[0], tmax: p[1], lvl: lvl, hot: p[1] >= 35 };
+}
+function weekdayOf(dateStr){
+  var p = dateStr.split('-').map(Number);
+  return ['周日','周一','周二','周三','周四','周五','周六'][new Date(Date.UTC(p[0],p[1]-1,p[2])).getUTCDay()];
+}
+
+/* ================= 基础工具 ================= */
+var $ = function(s){ return document.querySelector(s); };
+var KEYS = { daily:'yz_daily_v5', timing:'yz_timing_v5' };
+var OLD_KEYS = { daily:'yz_daily_v4', hourly:'yz_hourly_v4' };
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
-function todayStr(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function todayStr(){ var d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
 function load(key){ try { return JSON.parse(localStorage.getItem(key))||[]; } catch(e){ return []; } }
 function save(key, arr){ localStorage.setItem(key, JSON.stringify(arr)); }
-function num(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
-function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function toast(msg){ const el=$('#toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),1800); }
+function num(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function toast(msg){ var el=$('#toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(function(){el.classList.remove('show');},1800); }
 function toCSV(headers, rows){
-  const esc = v => { const s=String(v??''); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
-  return '\uFEFF' + [headers.map(esc).join(','), ...rows.map(r=>r.map(esc).join(','))].join('\r\n');
+  var e = function(v){ var s=String(v==null?'':v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  return '\uFEFF' + [headers.map(e).join(',')].concat(rows.map(function(r){ return r.map(e).join(','); })).join('\r\n');
 }
 function download(name, content, type){
-  const blob = new Blob([content], {type: type||'text/csv;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download=name;
+  var blob = new Blob([content], {type: type||'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download=name;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+function median(arr){
+  if(!arr.length) return 0;
+  var a = arr.slice().sort(function(x,y){return x-y;});
+  var m = Math.floor(a.length/2);
+  return a.length % 2 ? a[m] : (a[m-1]+a[m])/2;
+}
+function pct(arr, p){
+  if(!arr.length) return 0;
+  var a = arr.slice().sort(function(x,y){return x-y;});
+  var i = Math.min(a.length-1, Math.ceil(p/100*a.length)-1);
+  return a[Math.max(0,i)];
 }
 
-// ================= 自动联动业务模式 =================
-document.getElementById('d-date').addEventListener('change', function() {
-  const selectedDate = this.value;
-  const flowModeSelect = document.getElementById('d-flow-mode');
-  if(!selectedDate) return;
-  
-  // 注意：这里的年份请根据你实际的分界年份修改，目前按 2026 年设定
-  if (selectedDate < '2026-09-07') {
-    flowModeSelect.value = '简化前';
-  } else {
-    flowModeSelect.value = '简化后';
-  }
-});
+/* ================= 业务模式自动判定 ================= */
+function modeOf(dateStr){ return dateStr < '2026-09-07' ? '简化前' : '简化后'; }
 
-// ================= Tab 切换 =================
-document.querySelectorAll('.tab').forEach(t => {
-  t.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+/* ================= Tab 切换 ================= */
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('active'); });
+    document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
     t.classList.add('active');
     document.getElementById('panel-' + t.dataset.tab).classList.add('active');
     if(t.dataset.tab === 'data') renderData();
-    if(t.dataset.tab === 'daily') { renderToday(); renderDailySummary(); }
+    if(t.dataset.tab === 'daily'){ renderToday(); renderDailySummary(); }
+    if(t.dataset.tab === 'timing'){ renderTiming(); }
     window.scrollTo(0,0);
   });
 });
 
-// ================= OCR 逻辑 =================
-let ocrResultsQueue = [];
-document.getElementById('ocr-input').addEventListener('change', async function(e) {
-  toast('单日识别功能暂未连接后端服务');
-  e.target.value = '';
-});
-document.getElementById('batch-ocr-input').addEventListener('change', async function(e) {
-  toast('批量识别功能暂未连接后端服务');
-  e.target.value = '';
+/* ================= 天气条 ================= */
+function renderWxBar(){
+  var d = $('#d-date').value;
+  var box = $('#wx-bar');
+  var w = d ? wxOf(d) : null;
+  if(!w){ box.style.display='none'; return; }
+  box.style.display='flex';
+  box.className = 'wx-bar' + (w.hot ? ' wx-hot' : '');
+  box.innerHTML = '<span style="font-size:18px;">' + (w.lvl==='晴' ? '☀️' : (w.lvl==='小雨' ? '🌦️' : (w.lvl==='中雨' ? '🌧️' : '⛈️'))) + '</span>'
+    + '<span>天气自动带出：<b>' + w.lvl + '</b>　降水 ' + w.rain.toFixed(1) + ' mm　最高 ' + w.tmax.toFixed(1) + ' ℃'
+    + (w.hot ? '　<b>高温</b>' : '') + '</span>';
+}
+
+/* ================= 每日录入 ================= */
+document.getElementById('d-date').addEventListener('change', function(){
+  if(this.value) $('#d-flow-mode').value = modeOf(this.value);
+  renderWxBar();
+  $('#warn-daily').style.display = 'none';
 });
 
-// ================= 每日汇总录入 =================
-document.getElementById('form-daily').addEventListener('submit', e => {
+$('#d-inbound').addEventListener('input', checkRange);
+$('#d-outbound').addEventListener('input', checkRange);
+$('#d-abnormal').addEventListener('input', checkRange);
+
+function checkRange(){
+  var ib = num($('#d-inbound').value), ob = num($('#d-outbound').value), ab = num($('#d-abnormal').value);
+  var msgs = [];
+  if(ib && ob > ib) msgs.push('签收量大于入库量（跨天签收时可能正常）');
+  if(ib && ab > ib) msgs.push('异常量大于入库量，请核对');
+  var el = $('#warn-daily');
+  if(msgs.length){ el.textContent = '⚠ ' + msgs.join('；'); el.style.display='block'; }
+  else { el.style.display='none'; }
+}
+
+document.getElementById('form-daily').addEventListener('submit', function(e){
   e.preventDefault();
-  const date = $('#d-date').value || todayStr();
-  const rec = {
-    id: uid(), date,
+  var date = $('#d-date').value || todayStr();
+  var w = wxOf(date);
+  var rec = {
+    id: uid(), date: date,
     inbound: num($('#d-inbound').value),
     outbound: num($('#d-outbound').value),
     send: num($('#d-send').value),
-    sfInbound: num($('#d-sf-inbound').value),
-    otherInbound: num($('#d-other-inbound').value),
-    abnormalOut: num($('#d-abnormal-out').value),
+    abnormal: num($('#d-abnormal').value),
     staff: num($('#d-staff').value),
     flowMode: $('#d-flow-mode').value,
+    weather: w ? w.lvl : '',
+    rain: w ? w.rain : '',
+    tmax: w ? w.tmax : '',
     note: $('#d-note').value.trim(),
     ts: Date.now()
   };
-  const list = load(KEYS.daily);
-  const idx = list.findIndex(r => r.date === date);
+  var list = load(KEYS.daily);
+  var idx = list.findIndex(function(r){ return r.date === date; });
   if(idx >= 0){
     if(!confirm(date + ' 已有记录，是否覆盖？')) return;
     rec.id = list[idx].id; list[idx] = rec;
   } else { list.push(rec); }
-  list.sort((a,b) => a.date < b.date ? 1 : -1);
+  list.sort(function(a,b){ return a.date < b.date ? 1 : -1; });
   save(KEYS.daily, list);
-  
+
   e.target.reset();
   $('#d-date').value = todayStr();
   $('#d-date').dispatchEvent(new Event('change'));
-  
+
   toast('已保存 ✓'); renderToday(); renderDailySummary();
 });
 
 function renderToday(){
-  const rec = load(KEYS.daily).find(r => r.date === todayStr());
-  const el = $('#today-box');
+  var rec = load(KEYS.daily).find(function(r){ return r.date === todayStr(); });
+  var el = $('#today-box');
   if(!rec){ el.innerHTML = '<p class="empty" style="grid-column:1/-1">今日暂无记录</p>'; return; }
-  el.innerHTML = `
-    <div class="kv"><span>入库</span><b>${rec.inbound}</b></div>
-    <div class="kv"><span>签收</span><b>${rec.outbound}</b></div>
-    <div class="kv"><span>异常出库</span><b style="color:var(--danger)">${rec.abnormalOut||0}</b></div>
-    <div class="kv"><span>寄件</span><b>${rec.send}</b></div>
-  `;
+  el.innerHTML =
+    '<div class="kv"><span>入库</span><b>' + rec.inbound + '</b></div>' +
+    '<div class="kv"><span>签收</span><b>' + rec.outbound + '</b></div>' +
+    '<div class="kv"><span>异常量</span><b style="color:var(--danger)">' + (rec.abnormal||0) + '</b></div>' +
+    '<div class="kv"><span>寄件</span><b>' + rec.send + '</b></div>';
 }
 
 function renderDailySummary(){
-  const list = load(KEYS.daily);
+  var list = load(KEYS.daily);
   if(!list.length){ $('#summary-display').innerHTML = '<p class="empty">暂无数据</p>'; return; }
-  const today = new Date(); today.setHours(0,0,0,0);
-  const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 6);
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  
-  let sum7 = { inbound:0, outbound:0, abnormalOut:0, send:0, sfInbound:0 };
-  let sumMonth = { inbound:0, outbound:0, abnormalOut:0, send:0, sfInbound:0 };
-  
-  list.forEach(r => {
-    const d = new Date(r.date); d.setHours(0,0,0,0);
-    if(d >= sevenDaysAgo){ sum7.inbound+=r.inbound||0; sum7.outbound+=r.outbound||0; sum7.abnormalOut+=r.abnormalOut||0; sum7.send+=r.send||0; sum7.sfInbound+=r.sfInbound||0; }
-    if(d >= firstOfMonth){ sumMonth.inbound+=r.inbound||0; sumMonth.outbound+=r.outbound||0; sumMonth.abnormalOut+=r.abnormalOut||0; sumMonth.send+=r.send||0; sumMonth.sfInbound+=r.sfInbound||0; }
+  var today = new Date(); today.setHours(0,0,0,0);
+  var from7 = new Date(today); from7.setDate(today.getDate() - 6);
+  var firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  var s7 = {inbound:0, outbound:0, abnormal:0, send:0, days:0};
+  var sm = {inbound:0, outbound:0, abnormal:0, send:0, days:0};
+  list.forEach(function(r){
+    var d = new Date(r.date + 'T00:00:00'); d.setHours(0,0,0,0);
+    if(d >= from7){ s7.inbound+=r.inbound||0; s7.outbound+=r.outbound||0; s7.abnormal+=r.abnormal||0; s7.send+=r.send||0; s7.days++; }
+    if(d >= firstOfMonth){ sm.inbound+=r.inbound||0; sm.outbound+=r.outbound||0; sm.abnormal+=r.abnormal||0; sm.send+=r.send||0; sm.days++; }
   });
-  
-  const rate7 = sum7.inbound ? ((sum7.outbound / sum7.inbound) * 100).toFixed(2) + '%' : '0%';
-  const rateMonth = sumMonth.inbound ? ((sumMonth.outbound / sumMonth.inbound) * 100).toFixed(2) + '%' : '0%';
-  
-  $('#summary-display').innerHTML = `
-    <div class="summary-box">
-      <div class="summary-item"><span>近7日入库</span><b>${sum7.inbound}</b></div>
-      <div class="summary-item"><span>近7日签收</span><b>${sum7.outbound}</b></div>
-      <div class="summary-item"><span>近7日出库率</span><b>${rate7}</b></div>
-      <div class="summary-item"><span>近7日异常出库</span><b style="color:var(--danger)">${sum7.abnormalOut}</b></div>
-    </div>
-    <div class="summary-box" style="background:#f0fdf4;">
-      <div class="summary-item"><span>当月入库</span><b>${sumMonth.inbound}</b></div>
-      <div class="summary-item"><span>当月签收</span><b>${sumMonth.outbound}</b></div>
-      <div class="summary-item"><span>当月出库率</span><b>${rateMonth}</b></div>
-      <div class="summary-item"><span>当月异常出库</span><b style="color:var(--danger)">${sumMonth.abnormalOut}</b></div>
-    </div>
-    <p class="hint" style="text-align:center;">顺丰件占比: ${sum7.inbound ? ((sum7.sfInbound / sum7.inbound) * 100).toFixed(1) + '%' : '未记录'}</p>
-  `;
+  function rate(o, i){ return i ? (o/i*100).toFixed(1) + '%' : '—'; }
+  function arate(a, i){ return i ? (a/i*100).toFixed(1) + '%' : '—'; }
+  $('#summary-display').innerHTML =
+    '<div class="summary-box">' +
+      '<div class="summary-item"><span>近7日入库</span><b>' + s7.inbound + '</b></div>' +
+      '<div class="summary-item"><span>近7日签收</span><b>' + s7.outbound + '</b></div>' +
+      '<div class="summary-item"><span>近7日出库率</span><b>' + rate(s7.outbound, s7.inbound) + '</b></div>' +
+      '<div class="summary-item"><span>近7日异常量</span><b style="color:var(--danger)">' + s7.abnormal + '</b></div>' +
+    '</div>' +
+    '<div class="summary-box" style="background:#f0fdf4;">' +
+      '<div class="summary-item"><span>当月入库</span><b>' + sm.inbound + '</b></div>' +
+      '<div class="summary-item"><span>当月签收</span><b>' + sm.outbound + '</b></div>' +
+      '<div class="summary-item"><span>当月出库率</span><b>' + rate(sm.outbound, sm.inbound) + '</b></div>' +
+      '<div class="summary-item"><span>当月异常量</span><b style="color:var(--danger)">' + sm.abnormal + '</b></div>' +
+    '</div>' +
+    '<p class="hint" style="text-align:center;">近7日异常率 ' + arate(s7.abnormal, s7.inbound) + '　·　当月异常率 ' + arate(sm.abnormal, sm.inbound) + '　·　近7日覆盖 ' + s7.days + ' 天</p>';
 }
 
-// ================= 时段流量录入 =================
-document.getElementById('form-hourly').addEventListener('submit', e => {
-  e.preventDefault();
-  const date = $('#h-date').value || todayStr();
-  const hour = $('#h-hour').value;
-  const rec = { id: uid(), date, hour, count: num($('#h-count').value), note: $('#h-note').value.trim(), ts: Date.now() };
-  const list = load(KEYS.hourly);
-  const idx = list.findIndex(r => r.date===date && r.hour===hour);
-  if(idx >= 0){
-    if(!confirm(date + ' ' + hour + ' 已有记录，是否覆盖？')) return;
-    rec.id = list[idx].id; list[idx] = rec;
-  } else { list.push(rec); }
-  list.sort((a,b) => { if(a.date!==b.date) return a.date<b.date?1:-1; return a.hour<b.hour?-1:1; });
-  save(KEYS.hourly, list);
-  e.target.reset(); $('#h-date').value = todayStr(); toast('已保存 ✓');
+/* ================= 取件计时 ================= */
+var timer = { running:false, start:0, tick:null };
+var timerEl = $('#timer-num'), timerHint = $('#timer-hint'), timerBtn = $('#btn-timer');
+
+function fmtSec(sec){ return sec < 60 ? sec.toFixed(1) : Math.floor(sec/60) + ':' + ('0'+(sec%60).toFixed(1)).slice(-4); }
+
+function tickTimer(){
+  var el = (Date.now() - timer.start) / 1000;
+  timerEl.textContent = fmtSec(el);
+}
+
+timerBtn.addEventListener('click', function(){
+  if(!timer.running){
+    timer.running = true; timer.start = Date.now();
+    timerEl.classList.add('run');
+    timerEl.textContent = '0.0';
+    timerHint.textContent = '计时中…（' + new Date().toTimeString().slice(0,5) + ' 开始）';
+    timerBtn.textContent = '停止并保存';
+    timerBtn.classList.add('stop');
+    timer.tick = setInterval(tickTimer, 100);
+  } else {
+    var sec = (Date.now() - timer.start) / 1000;
+    timer.running = false; clearInterval(timer.tick);
+    timerEl.classList.remove('run');
+    timerBtn.textContent = '开始计时';
+    timerBtn.classList.remove('stop');
+    if(sec < 0.5){ timerHint.textContent = '太短，未记录'; toast('时长过短，已忽略'); return; }
+    var list = load(KEYS.timing);
+    list.push({
+      id: uid(), date: todayStr(), hour: new Date().getHours(), sec: Math.round(sec*10)/10,
+      needSearch: $('#t-needsearch').checked, note: $('#t-note').value.trim(), ts: Date.now()
+    });
+    save(KEYS.timing, list);
+    timerHint.textContent = '已保存 ' + fmtSec(sec) + ' 秒';
+    timerEl.textContent = fmtSec(sec);
+    $('#t-needsearch').checked = false; $('#t-note').value = '';
+    toast('已记录 ✓');
+    renderTiming();
+  }
 });
 
-// ================= 图表与过滤逻辑 =================
-let chartTrend, chartHour;
+function renderTiming(){
+  var list = load(KEYS.timing);
+  var secs = list.map(function(r){ return r.sec; });
+  var ns = list.filter(function(r){ return r.needSearch; }).length;
+  var box = $('#timing-stats');
+  if(!list.length){
+    box.innerHTML = '<div class="kv" style="grid-column:1/-1"><span>还没有样本</span><b>0</b></div>';
+    $('#timing-hint').textContent = '建议每次班固定挑高峰半小时，连续记 10 单，一周 2 次。';
+  } else {
+    box.innerHTML =
+      '<div class="kv"><span>样本</span><b>' + list.length + '</b></div>' +
+      '<div class="kv"><span>中位数</span><b>' + median(secs).toFixed(1) + 's</b></div>' +
+      '<div class="kv"><span>P90</span><b>' + pct(secs, 90).toFixed(1) + 's</b></div>' +
+      '<div class="kv"><span>需查单</span><b>' + (ns/list.length*100).toFixed(0) + '%</b></div>';
+    $('#timing-hint').textContent = '平均 ' + (secs.reduce(function(a,b){return a+b;},0)/list.length).toFixed(1)
+      + ' 秒，最长 ' + Math.max.apply(null, secs).toFixed(1) + ' 秒，最短 ' + Math.min.apply(null, secs).toFixed(1) + ' 秒。';
+  }
+  var recent = list.slice().sort(function(a,b){ return b.ts - a.ts; }).slice(0, 10);
+  $('#timing-list').innerHTML = recent.length ? recent.map(function(r){
+    return '<div class="rec"><div class="rec-main">' +
+      '<div class="rec-title">' + r.sec.toFixed(1) + ' 秒' + (r.needSearch ? ' <span style="color:#b45309;font-size:12px;">需查单</span>' : '') + '</div>' +
+      '<div class="rec-sub">' + r.date + ' ' + ('0'+r.hour).slice(-2) + ' 时</div>' +
+      (r.note ? '<div class="rec-note">' + esc(r.note) + '</div>' : '') +
+      '</div><button class="btn-del" onclick="delTiming(\'' + r.id + '\')">删除</button></div>';
+  }).join('') : '<p class="empty">暂无样本</p>';
+}
 
-window.updateChartRange = function() {
+window.delTiming = function(id){
+  if(!confirm('删除这条样本？')) return;
+  save(KEYS.timing, load(KEYS.timing).filter(function(r){ return r.id !== id; }));
+  renderTiming(); toast('已删除');
+};
+
+window.exportTiming = function(){
+  var list = load(KEYS.timing);
+  if(!list.length) return toast('暂无样本');
+  var heads = ['日期','星期','小时','耗时秒','是否需查单','备注'];
+  var rows = list.slice().sort(function(a,b){ return a.ts - b.ts; }).map(function(r){
+    return [r.date, weekdayOf(r.date), r.hour, r.sec, r.needSearch ? '是' : '否', r.note || ''];
+  });
+  download('驿站取件计时_' + todayStr() + '.csv', toCSV(heads, rows));
+};
+
+/* ================= 图表与透视 ================= */
+var chartTrend, chartHour, chartPivot;
+
+window.resetChartRange = function(){
+  $('#chart-start-date').value = ''; $('#chart-end-date').value = '';
   renderData();
 };
 
-window.resetChartRange = function() {
-  document.getElementById('chart-start-date').value = '';
-  document.getElementById('chart-end-date').value = '';
-  renderData();
-};
+var PIVOT_LABEL = { mode:'业务模式', month:'月份', week:'周', weekday:'星期', weather:'天气', day:'日期' };
+
+function weekKey(dateStr){
+  var p = dateStr.split('-').map(Number);
+  var d = new Date(Date.UTC(p[0], p[1]-1, p[2]));
+  var day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  var yStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  var wk = Math.ceil((((d - yStart) / 86400000) + 1) / 7);
+  return d.getUTCFullYear() + ' W' + ('0'+wk).slice(-2);
+}
+
+function pivotKey(r, dim){
+  if(dim === 'mode') return r.flowMode || modeOf(r.date);
+  if(dim === 'month') return r.date.slice(0,7);
+  if(dim === 'week') return weekKey(r.date);
+  if(dim === 'weekday') return weekdayOf(r.date);
+  if(dim === 'weather') return r.weather || (wxOf(r.date) ? wxOf(r.date).lvl : '未知');
+  return r.date;
+}
+
+function renderPivot(daily){
+  var dim = $('#pivot-dim').value, metric = $('#pivot-metric').value;
+  var map = {};
+  daily.forEach(function(r){
+    var k = pivotKey(r, dim);
+    if(!map[k]) map[k] = {n:0, inbound:0, outbound:0, abnormal:0, send:0, staff:0};
+    var g = map[k];
+    g.n++;
+    g.inbound += r.inbound||0; g.outbound += r.outbound||0; g.abnormal += r.abnormal||0;
+    g.send += r.send||0; g.staff += r.staff||0;
+  });
+  var keys = Object.keys(map);
+  if(dim === 'weekday'){ var order = ['周一','周二','周三','周四','周五','周六','周日']; keys.sort(function(a,b){ return order.indexOf(a)-order.indexOf(b); }); }
+  else if(dim !== 'day' && dim !== 'month'){ keys.sort(); }
+
+  var t = $('#pivot-table');
+  if(!keys.length){ t.innerHTML = '<tr><td class="empty">暂无数据</td></tr>'; return; }
+  var html = '<thead><tr><th>' + PIVOT_LABEL[dim] + '</th><th>天数</th><th>入库</th><th>签收</th><th>异常量</th><th>异常率</th><th>日均入库</th><th>' + $('#pivot-metric').selectedOptions[0].text + '合计</th></tr></thead><tbody>';
+  var chartData = [];
+  keys.forEach(function(k){
+    var g = map[k];
+    var ar = g.inbound ? (g.abnormal/g.inbound*100).toFixed(1)+'%' : '—';
+    html += '<tr><td>' + esc(k) + '</td><td>' + g.n + '</td><td>' + g.inbound + '</td><td>' + g.outbound + '</td><td>' + g.abnormal + '</td><td>' + ar + '</td><td>' + (g.inbound/g.n).toFixed(1) + '</td><td><b>' + g[metric] + '</b></td></tr>';
+    chartData.push({k:k, v:g[metric]});
+  });
+  html += '</tbody>';
+  t.innerHTML = html;
+
+  if(!window.echarts){ var cp = document.getElementById('chart-pivot'); if(cp) cp.style.display = 'none'; return; }
+  if(!chartPivot) chartPivot = echarts.init(document.getElementById('chart-pivot'));
+  chartPivot.setOption({
+    title: { text: PIVOT_LABEL[dim] + '维度：' + $('#pivot-metric').selectedOptions[0].text + '合计', left:'center', textStyle:{fontSize:13} },
+    tooltip: { trigger:'axis' },
+    xAxis: { type:'category', data: chartData.map(function(d){return d.k;}), axisLabel:{fontSize:10, rotate: chartData.length>8?45:0} },
+    yAxis: { type:'value' },
+    series: [{ type:'bar', data: chartData.map(function(d){return d.v;}), itemStyle:{color:'#2563eb'} }],
+    grid: { left:'12%', right:'5%', bottom: chartData.length>8?'22%':'14%', top:'18%' }
+  }, true);
+}
 
 function renderData(){
-  const daily = load(KEYS.daily);
-  const hourly = load(KEYS.hourly);
-  document.getElementById('stat-daily').textContent = daily.length;
-  document.getElementById('stat-hourly').textContent = hourly.length;
-  document.getElementById('stat-wait').textContent = '0'; 
+  var daily = load(KEYS.daily);
+  var timing = load(KEYS.timing);
+  $('#stat-daily').textContent = daily.length;
+  $('#stat-timing').textContent = timing.length;
+  $('#stat-days').textContent = new Set(daily.map(function(r){ return r.date; })).size;
 
-  document.getElementById('list-daily').innerHTML = daily.length ? daily.map(r => `
-    <div class="rec">
-      <div class="rec-main">
-        <div class="rec-title">${r.date} <span style="font-size:12px;font-weight:normal;color:#64748b;">[${r.flowMode||'未标记'}]</span></div>
-        <div class="rec-sub">入库 ${r.inbound} · 签收 ${r.outbound} · 异常出库 ${r.abnormalOut||0} · 寄件 ${r.send} · 在岗 ${r.staff||0}人 · 顺丰 ${r.sfInbound||0}</div>
-        ${r.note ? `<div class="rec-note">${escapeHtml(r.note)}</div>` : ''}
-      </div>
-      <button class="btn-del" onclick="delRec('daily','${r.id}')">删除</button>
-    </div>
-  `).join('') : '<p class="empty">暂无记录</p>';
+  $('#list-daily').innerHTML = daily.length ? daily.map(function(r){
+    var w = r.weather || (wxOf(r.date) ? wxOf(r.date).lvl : '');
+    return '<div class="rec"><div class="rec-main">' +
+      '<div class="rec-title">' + r.date + ' <span style="font-size:12px;font-weight:normal;color:#64748b;">[' + (r.flowMode||'未标记') + ']' + (w ? ' · ' + w : '') + '</span></div>' +
+      '<div class="rec-sub">入库 ' + r.inbound + ' · 签收 ' + r.outbound + ' · 异常量 ' + (r.abnormal||0) + ' · 寄件 ' + r.send + ' · 在岗 ' + (r.staff||0) + '人</div>' +
+      (r.note ? '<div class="rec-note">' + esc(r.note) + '</div>' : '') +
+      '</div><button class="btn-del" onclick="delRec(\'daily\',\'' + r.id + '\')">删除</button></div>';
+  }).join('') : '<p class="empty">暂无记录</p>';
 
+  if(!window.echarts){
+    ['chart-trend','chart-hour'].forEach(function(id){ var el = document.getElementById(id); if(el) el.style.display = 'none'; });
+    $('#chart-trend').innerHTML = '<p class="empty">图表库未加载（需联网），下方表格数据不受影响</p>';
+    $('#chart-trend').style.display = 'block';
+    $('#chart-trend').style.height = 'auto';
+  } else {
   if(!chartTrend) chartTrend = echarts.init(document.getElementById('chart-trend'));
   if(!chartHour) chartHour = echarts.init(document.getElementById('chart-hour'));
 
-  const startDate = document.getElementById('chart-start-date').value;
-  const endDate = document.getElementById('chart-end-date').value;
-
-  let filteredDaily = daily.slice().sort((a,b) => a.date < b.date ? 1 : -1);
-  
-  if (startDate || endDate) {
-    filteredDaily = filteredDaily.filter(r => {
-      let match = true;
-      if (startDate && r.date < startDate) match = false;
-      if (endDate && r.date > endDate) match = false;
-      return match;
+  var startDate = $('#chart-start-date').value, endDate = $('#chart-end-date').value;
+  var filtered = daily.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+  if(startDate || endDate){
+    filtered = filtered.filter(function(r){
+      if(startDate && r.date < startDate) return false;
+      if(endDate && r.date > endDate) return false;
+      return true;
     });
   } else {
-    filteredDaily = filteredDaily.slice(0, 14);
+    filtered = filtered.slice(0, 14);
   }
-
-  const recentDaily = filteredDaily.reverse();
+  var rows = filtered.slice().reverse();
 
   chartTrend.setOption({
-    title: { text: (startDate || endDate) ? '自定义区间出入库趋势' : '近14日出入库趋势', left: 'center', textStyle: { fontSize: 14 } },
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['入库量', '签收量', '异常出库'], bottom: 0, textStyle: { fontSize: 11 } },
-    xAxis: { type: 'category', data: recentDaily.map(r => r.date.slice(5)), axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value' },
+    title: { text: (startDate || endDate) ? '自定义区间趋势' : '近 14 日趋势', left:'center', textStyle:{fontSize:14} },
+    tooltip: { trigger:'axis' },
+    legend: { data:['入库量','签收量','异常量'], bottom:0, textStyle:{fontSize:11} },
+    xAxis: { type:'category', data: rows.map(function(r){ return r.date.slice(5); }), axisLabel:{fontSize:10} },
+    yAxis: { type:'value' },
     series: [
-      { name: '入库量', type: 'line', data: recentDaily.map(r => r.inbound), smooth: true, itemStyle: { color: '#2563eb' } },
-      { name: '签收量', type: 'line', data: recentDaily.map(r => r.outbound), smooth: true, itemStyle: { color: '#059669' } },
-      { name: '异常出库', type: 'bar', data: recentDaily.map(r => r.abnormalOut||0), itemStyle: { color: '#dc2626' } }
+      { name:'入库量', type:'line', data: rows.map(function(r){ return r.inbound; }), smooth:true, itemStyle:{color:'#2563eb'} },
+      { name:'签收量', type:'line', data: rows.map(function(r){ return r.outbound; }), smooth:true, itemStyle:{color:'#059669'} },
+      { name:'异常量', type:'line', data: rows.map(function(r){ return r.abnormal||0; }), smooth:true, itemStyle:{color:'#dc2626'} }
     ],
-    grid: { left: '12%', right: '5%', bottom: '15%', top: '15%' }
+    grid: { left:'12%', right:'5%', bottom:'15%', top:'15%' }
   }, true);
 
-  const hourlyGroup = {};
-  hourly.forEach(r => { hourlyGroup[r.hour] = (hourlyGroup[r.hour] || 0) + r.count; });
-  const sortedHours = Object.keys(hourlyGroup).sort();
+  var hours = ['09:00-10:00','10:00-11:00','11:00-12:00','12:00-13:00','13:00-14:00','14:00-15:00','15:00-16:00','16:00-17:00','17:00-18:00','18:00-19:00','19:00-20:00'];
+  var hg = {};
+  load('yz_hourly_v4').forEach(function(r){ hg[r.hour] = (hg[r.hour]||0) + r.count; });
+  var hk = Object.keys(hg).sort();
   chartHour.setOption({
-    title: { text: '时段取件人数分布', left: 'center', textStyle: { fontSize: 14 } },
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: sortedHours, axisLabel: { fontSize: 10, rotate: 45 } },
-    yAxis: { type: 'value' },
-    series: [{ name: '取件人数', type: 'bar', data: sortedHours.map(h => hourlyGroup[h]), itemStyle: { color: '#2563eb' } }],
-    grid: { left: '12%', right: '5%', bottom: '20%', top: '15%' }
+    title: { text:'时段取件人数分布', left:'center', textStyle:{fontSize:14} },
+    tooltip: { trigger:'axis' },
+    xAxis: { type:'category', data: hk.length ? hk : hours, axisLabel:{fontSize:9, rotate:45} },
+    yAxis: { type:'value' },
+    series: [{ name:'取件人数', type:'bar', data: hk.map(function(h){ return hg[h]; }), itemStyle:{color:'#2563eb'} }],
+    grid: { left:'12%', right:'5%', bottom:'20%', top:'15%' }
   }, true);
+
+  }
+
+  renderPivot(daily);
 }
+
+$('#pivot-dim').addEventListener('change', function(){ renderPivot(load(KEYS.daily)); });
+$('#pivot-metric').addEventListener('change', function(){ renderPivot(load(KEYS.daily)); });
 
 window.delRec = function(type, id){
   if(!confirm('确定删除这条记录？')) return;
-  save(KEYS[type], load(KEYS[type]).filter(r => r.id !== id));
-  renderData(); if(type==='daily') { renderToday(); renderDailySummary(); } toast('已删除');
+  save(KEYS[type], load(KEYS[type]).filter(function(r){ return r.id !== id; }));
+  renderData(); renderToday(); renderDailySummary(); toast('已删除');
 };
 
-// ================= 导入导出 =================
+/* ================= 导入导出 ================= */
 window.exportDaily = function(){
-  const list = load(KEYS.daily); if(!list.length) return toast('暂无数据');
-  const headers = ['日期','业务模式','入库量','签收量','寄件量','异常出库','在岗人数','顺丰入库','其他品牌入库','备注'];
-  const rows = list.map(r => [r.date, r.flowMode||'', r.inbound, r.outbound, r.send, r.abnormalOut||0, r.staff||0, r.sfInbound||0, r.otherInbound||0, r.note]);
-  download('驿站每日数据_' + todayStr() + '.csv', toCSV(headers, rows));
+  var list = load(KEYS.daily);
+  if(!list.length) return toast('暂无数据');
+  var heads = ['日期','星期','业务模式','天气','降水mm','最高温℃','入库量','签收量','异常量','寄件量','在岗人数','备注'];
+  var rows = list.slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; }).map(function(r){
+    return [r.date, weekdayOf(r.date), r.flowMode||'', r.weather||'', r.rain, r.tmax, r.inbound, r.outbound, r.abnormal||0, r.send, r.staff||0, r.note||''];
+  });
+  download('驿站每日数据_' + todayStr() + '.csv', toCSV(heads, rows));
 };
 
 window.backupAll = function(){
-  const data = { daily: load(KEYS.daily), hourly: load(KEYS.hourly), exportedAt: new Date().toISOString() };
+  var data = { version:5, daily: load(KEYS.daily), timing: load(KEYS.timing), exportedAt: new Date().toISOString() };
   download('驿站数据备份_' + todayStr() + '.json', JSON.stringify(data, null, 2), 'application/json');
 };
 
-document.getElementById('file-import').addEventListener('change', e => {
-  const f = e.target.files[0]; if(!f) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
+document.getElementById('file-import').addEventListener('change', function(e){
+  var f = e.target.files[0]; if(!f) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){
     try{
-      const data = JSON.parse(ev.target.result);
-      ['daily','hourly'].forEach(k => {
-        if(Array.isArray(data[k])){
-          const cur = load(KEYS[k]); const map = new Map(cur.map(r=>[r.id,r]));
-          data[k].forEach(r => map.set(r.id,r));
-          save(KEYS[k], Array.from(map.values()));
-        }
-      });
-      renderData(); renderToday(); renderDailySummary(); toast('导入成功 ✓');
+      var data = JSON.parse(ev.target.result);
+      var n = 0;
+      if(Array.isArray(data.daily)){
+        var cur = load(KEYS.daily);
+        var map = new Map(cur.map(function(r){ return [r.id, r]; }));
+        data.daily.forEach(function(r){
+          var rec = {
+            id: r.id || uid(), date: r.date,
+            inbound: num(r.inbound), outbound: num(r.outbound), send: num(r.send),
+            abnormal: num(r.abnormal != null ? r.abnormal : r.abnormalOut),   /* V4 兼容 */
+            staff: num(r.staff),
+            flowMode: r.flowMode || modeOf(r.date),
+            weather: r.weather || (wxOf(r.date) ? wxOf(r.date).lvl : ''),
+            rain: r.rain != null ? r.rain : (wxOf(r.date) ? wxOf(r.date).rain : ''),
+            tmax: r.tmax != null ? r.tmax : (wxOf(r.date) ? wxOf(r.date).tmax : ''),
+            note: r.note || '', ts: r.ts || Date.now()
+          };
+          map.set(rec.id, rec); n++;
+        });
+        var arr = Array.from(map.values());
+        arr.sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+        save(KEYS.daily, arr);
+      }
+      if(Array.isArray(data.timing)){
+        var cur2 = load(KEYS.timing);
+        var m2 = new Map(cur2.map(function(r){ return [r.id, r]; }));
+        data.timing.forEach(function(r){ m2.set(r.id || uid(), r); n++; });
+        save(KEYS.timing, Array.from(m2.values()));
+      }
+      renderData(); renderToday(); renderDailySummary(); renderTiming();
+      toast('导入成功 ' + n + ' 条 ✓');
     }catch(err){ alert('导入失败：' + err.message); }
   };
-  reader.readAsText(f); e.target.value='';
+  reader.readAsText(f); e.target.value = '';
 });
 
 window.clearAll = function(){
   if(!confirm('确定清空全部数据？此操作不可恢复！')) return;
-  Object.values(KEYS).forEach(k => localStorage.removeItem(k));
-  renderData(); renderToday(); renderDailySummary(); toast('已清空');
+  Object.keys(KEYS).forEach(function(k){ localStorage.removeItem(KEYS[k]); });
+  renderData(); renderToday(); renderDailySummary(); renderTiming(); toast('已清空');
 };
 
-// ================= 启动初始化 =================
+/* ================= 启动 ================= */
 (function init(){
-  const t = todayStr();
-  document.querySelectorAll('input[type=date]').forEach(el => el.value = t);
-  $('#d-date').dispatchEvent(new Event('change')); // 触发一次自动选择业务模式
-  renderToday(); 
-  renderDailySummary();
+  /* V4 → V5 本机数据迁移 */
+  if(!localStorage.getItem(KEYS.daily)){
+    var olds = load(OLD_KEYS.daily);
+    if(olds.length){
+      var migrated = olds.map(function(r){
+        return {
+          id: r.id || uid(), date: r.date,
+          inbound: num(r.inbound), outbound: num(r.outbound), send: num(r.send),
+          abnormal: num(r.abnormalOut), staff: num(r.staff),
+          flowMode: r.flowMode || modeOf(r.date),
+          weather: wxOf(r.date) ? wxOf(r.date).lvl : '',
+          rain: wxOf(r.date) ? wxOf(r.date).rain : '',
+          tmax: wxOf(r.date) ? wxOf(r.date).tmax : '',
+          note: r.note || '', ts: r.ts || Date.now()
+        };
+      });
+      save(KEYS.daily, migrated);
+      toast('已迁移 ' + migrated.length + ' 条旧记录');
+    }
+  }
+
+  var t = todayStr();
+  document.querySelectorAll('input[type=date]').forEach(function(el){ el.value = t; });
+  $('#d-date').dispatchEvent(new Event('change'));
+  renderToday(); renderDailySummary(); renderTiming();
 })();
 </script>
 </body>
